@@ -1,0 +1,32 @@
+# Nix build results
+result
+result-*
+
+# Secrets (if not using sops/agenix)
+secrets/
+*.key
+*.pem
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.direnv/
+.envrc
+.jj/
+
+# Hardware configuration (generated, should be committed but flagging here as optional)
+# Uncomment if you want to ignore auto-generated hardware configs
+# hardware-configuration.nix
+
+# Age keys (if using agenix)
+age-keys.txt
+
+# Local development
+.env
+.env.local

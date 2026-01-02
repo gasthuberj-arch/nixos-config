@@ -98,10 +98,20 @@ in
           '';
         };
 
+        # Grafana (if enabled) - accessible via domain
+        # Note: Grafana uses native OIDC integration when Authelia is enabled
+        # No forward auth needed as Grafana handles OIDC directly
+        "grafana.${cfg.domain}" = mkIf config.services.grafana-custom.enable {
+          extraConfig = ''
+            tls internal
+            reverse_proxy localhost:${toString config.services.grafana-custom.port}
+          '';
+        };
+
         # IP-based access (HTTP only)
         "http://:80" = {
           extraConfig = ''
-            respond "Caddy is working via IP! 🎉\n\nFor HTTPS, use: https://homelab.lan, https://immich.homelab.lan, https://paperless.homelab.lan, https://nextcloud.homelab.lan, or https://homeassistant.homelab.lan" 200
+            respond "Caddy is working via IP! 🎉\n\nFor HTTPS, use: https://homelab.lan, https://auth.homelab.lan, https://immich.homelab.lan, https://paperless.homelab.lan, https://nextcloud.homelab.lan, https://homeassistant.homelab.lan, or https://grafana.homelab.lan" 200
           '';
         };
 
@@ -109,7 +119,7 @@ in
         "https://:443" = {
           extraConfig = ''
             tls internal
-            respond "Caddy HTTPS is working via IP! 🎉\n\nFor named services, use: https://homelab.lan, https://immich.homelab.lan, https://paperless.homelab.lan, https://nextcloud.homelab.lan, or https://homeassistant.homelab.lan" 200
+            respond "Caddy HTTPS is working via IP! 🎉\n\nFor named services, use: https://homelab.lan, https://auth.homelab.lan, https://immich.homelab.lan, https://paperless.homelab.lan, https://nextcloud.homelab.lan, https://homeassistant.homelab.lan, or https://grafana.homelab.lan" 200
           '';
         };
       };

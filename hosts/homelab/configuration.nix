@@ -4,10 +4,12 @@
   imports = [
     ../../modules/zfs-root.nix
     ../../modules/services/caddy.nix
+    ../../modules/services/authelia.nix
     ../../modules/services/immich.nix
     ../../modules/services/paperless.nix
     ../../modules/services/nextcloud.nix
     ../../modules/services/homeassistant.nix
+    ../../modules/services/grafana.nix
     ../../modules/services/gaming.nix
     ./hardware-configuration.nix
     ./disko-config.nix
@@ -120,10 +122,12 @@
   networking.hosts = {
     "127.0.0.1" = [
       "homelab.lan"
+      "auth.homelab.lan"
       "immich.homelab.lan"
       "paperless.homelab.lan"
       "nextcloud.homelab.lan"
       "homeassistant.homelab.lan"
+      "grafana.homelab.lan"
     ];
   };
 
@@ -258,6 +262,9 @@
     };
   };
 
+  # Tailscale
+  services.tailscale.enable = true;
+
   # Firewall
   networking.firewall.enable = true;
   networking.firewall.allowedTCPPorts = [ 22 ]; # Additional ports opened by services
@@ -267,6 +274,12 @@
     enable = true;
     domain = "homelab.lan";
     # email = "your-email@example.com"; # Uncomment for Let's Encrypt certs
+  };
+
+  # Authelia SSO
+  services.authelia-custom = {
+    enable = true;
+    domain = "homelab.lan";
   };
 
   # Immich photo management
@@ -296,6 +309,32 @@
     enable = true;
     port = 8123;
     # dataDir defaults to /var/lib/hass (will be persisted)
+  };
+
+  # Grafana monitoring stack
+  services.grafana-custom = {
+    enable = true;
+    port = 3000;
+
+    # Prometheus metrics collection
+    prometheus = {
+      enable = true;
+      port = 9090;
+      retentionTime = "365d";  # Keep metrics for 1 year
+    };
+
+    # Loki log aggregation
+    loki = {
+      enable = true;
+      port = 3100;
+    };
+
+    # Exporters for system monitoring
+    exporters = {
+      node = true;      # System metrics (CPU, memory, disk, etc.)
+      systemd = true;   # Systemd service metrics
+      zfs = true;       # ZFS pool metrics
+    };
   };
 
   # Gaming services and emulators
@@ -332,6 +371,7 @@
     tmux
     zfs
     ethtool  # For Wake-on-LAN configuration
+    tailscale
   ];
 
   # Enable flakes

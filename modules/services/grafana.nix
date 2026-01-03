@@ -1,11 +1,13 @@
-{ config, lib, pkgs, pkgs-unstable, ... }:
-
-with lib;
-
-let
-  cfg = config.services.grafana-custom;
-in
 {
+  config,
+  lib,
+  pkgs,
+  pkgs-unstable,
+  ...
+}:
+with lib; let
+  cfg = config.services.grafana-custom;
+in {
   options.services.grafana-custom = {
     enable = mkEnableOption "Grafana monitoring stack with Prometheus and Loki";
 
@@ -144,10 +146,12 @@ in
           })
         ];
 
-        dashboards.settings.providers = [{
-          name = "default";
-          options.path = "/var/lib/grafana/dashboards";
-        }];
+        dashboards.settings.providers = [
+          {
+            name = "default";
+            options.path = "/var/lib/grafana/dashboards";
+          }
+        ];
       };
     };
 
@@ -166,33 +170,41 @@ in
         # Prometheus itself
         {
           job_name = "prometheus";
-          static_configs = [{
-            targets = [ "127.0.0.1:${toString cfg.prometheus.port}" ];
-          }];
+          static_configs = [
+            {
+              targets = ["127.0.0.1:${toString cfg.prometheus.port}"];
+            }
+          ];
         }
 
         # Node exporter (system metrics)
         (mkIf cfg.exporters.node {
           job_name = "node";
-          static_configs = [{
-            targets = [ "127.0.0.1:${toString config.services.prometheus.exporters.node.port}" ];
-          }];
+          static_configs = [
+            {
+              targets = ["127.0.0.1:${toString config.services.prometheus.exporters.node.port}"];
+            }
+          ];
         })
 
         # Systemd exporter
         (mkIf cfg.exporters.systemd {
           job_name = "systemd";
-          static_configs = [{
-            targets = [ "127.0.0.1:${toString config.services.prometheus.exporters.systemd.port}" ];
-          }];
+          static_configs = [
+            {
+              targets = ["127.0.0.1:${toString config.services.prometheus.exporters.systemd.port}"];
+            }
+          ];
         })
 
         # ZFS exporter
         (mkIf cfg.exporters.zfs {
           job_name = "zfs";
-          static_configs = [{
-            targets = [ "127.0.0.1:${toString config.services.prometheus.exporters.zfs.port}" ];
-          }];
+          static_configs = [
+            {
+              targets = ["127.0.0.1:${toString config.services.prometheus.exporters.zfs.port}"];
+            }
+          ];
         })
       ];
 
@@ -249,16 +261,18 @@ in
         };
 
         schema_config = {
-          configs = [{
-            from = "2024-01-01";
-            store = "tsdb";
-            object_store = "filesystem";
-            schema = "v13";
-            index = {
-              prefix = "index_";
-              period = "24h";
-            };
-          }];
+          configs = [
+            {
+              from = "2024-01-01";
+              store = "tsdb";
+              object_store = "filesystem";
+              schema = "v13";
+              index = {
+                prefix = "index_";
+                period = "24h";
+              };
+            }
+          ];
         };
 
         storage_config = {
@@ -306,9 +320,11 @@ in
           filename = "/var/lib/promtail/positions.yaml";
         };
 
-        clients = [{
-          url = "http://127.0.0.1:${toString cfg.loki.port}/loki/api/v1/push";
-        }];
+        clients = [
+          {
+            url = "http://127.0.0.1:${toString cfg.loki.port}/loki/api/v1/push";
+          }
+        ];
 
         scrape_configs = [
           # System journal logs
@@ -323,15 +339,15 @@ in
             };
             relabel_configs = [
               {
-                source_labels = [ "__journal__systemd_unit" ];
+                source_labels = ["__journal__systemd_unit"];
                 target_label = "unit";
               }
               {
-                source_labels = [ "__journal__hostname" ];
+                source_labels = ["__journal__hostname"];
                 target_label = "hostname";
               }
               {
-                source_labels = [ "__journal_priority" ];
+                source_labels = ["__journal_priority"];
                 target_label = "priority";
               }
             ];
@@ -340,14 +356,16 @@ in
           # Caddy logs
           {
             job_name = "caddy";
-            static_configs = [{
-              targets = [ "localhost" ];
-              labels = {
-                job = "caddy";
-                host = config.networking.hostName;
-                __path__ = "/var/log/caddy/*.log";
-              };
-            }];
+            static_configs = [
+              {
+                targets = ["localhost"];
+                labels = {
+                  job = "caddy";
+                  host = config.networking.hostName;
+                  __path__ = "/var/log/caddy/*.log";
+                };
+              }
+            ];
           }
         ];
       };
@@ -363,8 +381,8 @@ in
     # Create Grafana secrets if they don't exist
     systemd.services.grafana-generate-secrets = mkIf config.services.authelia-custom.enable {
       description = "Generate Grafana secrets if they don't exist";
-      wantedBy = [ "multi-user.target" ];
-      before = [ "grafana.service" ];
+      wantedBy = ["multi-user.target"];
+      before = ["grafana.service"];
 
       script = ''
         SECRETS_DIR="/persist/secrets/grafana"
@@ -391,8 +409,6 @@ in
         RemainAfterExit = true;
       };
     };
-
-
 
     # Persist monitoring data across reboots
     environment.persistence."/persist" = {
@@ -431,11 +447,13 @@ in
     };
 
     # System packages for debugging
-    environment.systemPackages = with pkgs; [
-      prometheus
-      grafana
-    ] ++ optionals cfg.loki.enable [
-      grafana-loki
-    ];
+    environment.systemPackages = with pkgs;
+      [
+        prometheus
+        grafana
+      ]
+      ++ optionals cfg.loki.enable [
+        grafana-loki
+      ];
   };
 }

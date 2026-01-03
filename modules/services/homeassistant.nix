@@ -1,11 +1,13 @@
-{ config, lib, pkgs, pkgs-unstable, ... }:
-
-with lib;
-
-let
-  cfg = config.services.homeassistant-custom;
-in
 {
+  config,
+  lib,
+  pkgs,
+  pkgs-unstable,
+  ...
+}:
+with lib; let
+  cfg = config.services.homeassistant-custom;
+in {
   options.services.homeassistant-custom = {
     enable = mkEnableOption "Home Assistant home automation service";
 
@@ -62,7 +64,7 @@ in
         http = {
           server_host = "127.0.0.1";
           server_port = cfg.port;
-          trusted_proxies = [ "127.0.0.1" "::1" ];
+          trusted_proxies = ["127.0.0.1" "::1"];
           use_x_forwarded_for = true;
         };
 
@@ -87,6 +89,6 @@ in
     };
 
     # Open firewall if requested
-    networking.firewall.allowedTCPPorts = mkIf cfg.openFirewall [ cfg.port ];
+    networking.firewall.allowedTCPPorts = mkIf cfg.openFirewall [cfg.port];
   };
 }

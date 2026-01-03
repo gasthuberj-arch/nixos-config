@@ -1,11 +1,12 @@
-{ config, lib, pkgs, ... }:
-
-with lib;
-
-let
-  cfg = config.services.gaming;
-in
 {
+  config,
+  lib,
+  pkgs,
+  ...
+}:
+with lib; let
+  cfg = config.services.gaming;
+in {
   options.services.gaming = {
     enable = mkEnableOption "gaming services and emulators";
 
@@ -92,32 +93,32 @@ in
     # Firewall configuration for Sunshine
     networking.firewall = mkIf (cfg.sunshine.enable && cfg.sunshine.openFirewall) {
       allowedTCPPorts = [
-        47984  # HTTPS Web UI
-        47989  # HTTP Web UI
-        47990  # RTSP
-        48010  # Video stream
+        47984 # HTTPS Web UI
+        47989 # HTTP Web UI
+        47990 # RTSP
+        48010 # Video stream
       ];
       allowedUDPPorts = [
-        47998  # Video
-        47999  # Control
-        48000  # Audio
-        48002  # Control
-        48010  # Video stream
+        47998 # Video
+        47999 # Control
+        48000 # Audio
+        48002 # Control
+        48010 # Video stream
       ];
     };
 
     # Install emulators based on configuration
     environment.systemPackages = with pkgs;
-      (optional cfg.sunshine.enable sunshine) ++
-      (optionals cfg.emulators.enable (
-        (optional cfg.emulators.retroarch retroarch) ++
-        (optional cfg.emulators.dolphin dolphin-emu) ++
-        (optional cfg.emulators.pcsx2 pcsx2) ++
-        (optional cfg.emulators.rpcs3 rpcs3) ++
-        (optional cfg.emulators.duckstation duckstation) ++
-        (optional cfg.emulators.cemu cemu) ++
-        (optional cfg.emulators.ryubing ryubing) ++
-        (optional cfg.emulators.ppsspp ppsspp-qt)
+      (optional cfg.sunshine.enable sunshine)
+      ++ (optionals cfg.emulators.enable (
+        (optional cfg.emulators.retroarch retroarch)
+        ++ (optional cfg.emulators.dolphin dolphin-emu)
+        ++ (optional cfg.emulators.pcsx2 pcsx2)
+        ++ (optional cfg.emulators.rpcs3 rpcs3)
+        ++ (optional cfg.emulators.duckstation duckstation)
+        ++ (optional cfg.emulators.cemu cemu)
+        ++ (optional cfg.emulators.ryubing ryubing)
+        ++ (optional cfg.emulators.ppsspp ppsspp-qt)
       ));
 
     # Enable OpenGL and Vulkan support for gaming

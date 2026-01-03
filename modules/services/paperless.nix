@@ -1,11 +1,12 @@
-{ config, lib, pkgs, ... }:
-
-with lib;
-
-let
-  cfg = config.services.paperless-custom;
-in
 {
+  config,
+  lib,
+  pkgs,
+  ...
+}:
+with lib; let
+  cfg = config.services.paperless-custom;
+in {
   options.services.paperless-custom = {
     enable = mkEnableOption "Paperless-ngx document management service";
 
@@ -49,7 +50,10 @@ in
       consumptionDir = cfg.consumeDir;
 
       # Admin password - set via passwordFile or use default
-      passwordFile = if cfg.passwordFile != null then cfg.passwordFile else null;
+      passwordFile =
+        if cfg.passwordFile != null
+        then cfg.passwordFile
+        else null;
 
       # Paperless settings
       settings = {
@@ -80,8 +84,8 @@ in
     # Fix permissions on existing directories before services start
     systemd.services.paperless-fix-permissions = {
       description = "Fix Paperless directory permissions";
-      wantedBy = [ "multi-user.target" ];
-      after = [ "systemd-tmpfiles-setup.service" ];
+      wantedBy = ["multi-user.target"];
+      after = ["systemd-tmpfiles-setup.service"];
       before = [
         "paperless-scheduler.service"
         "paperless-web.service"

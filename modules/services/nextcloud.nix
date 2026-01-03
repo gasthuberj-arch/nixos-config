@@ -1,11 +1,12 @@
-{ config, lib, pkgs, ... }:
-
-with lib;
-
-let
-  cfg = config.services.nextcloud-custom;
-in
 {
+  config,
+  lib,
+  pkgs,
+  ...
+}:
+with lib; let
+  cfg = config.services.nextcloud-custom;
+in {
   options.services.nextcloud-custom = {
     enable = mkEnableOption "Nextcloud self-hosted cloud service";
 
@@ -60,7 +61,8 @@ in
         # Admin account
         config = {
           adminuser = cfg.adminUser;
-          adminpassFile = if cfg.adminPasswordFile != null
+          adminpassFile =
+            if cfg.adminPasswordFile != null
             then cfg.adminPasswordFile
             else toString (pkgs.writeText "nextcloud-admin-pass" "changeme");
 
@@ -71,7 +73,7 @@ in
         # Additional settings
         settings = {
           # Trust proxy headers from Caddy
-          trusted_proxies = [ "127.0.0.1" "::1" ];
+          trusted_proxies = ["127.0.0.1" "::1"];
           overwriteprotocol = "https";
 
           # Performance settings
@@ -118,9 +120,9 @@ in
       # Fix permissions on existing directories before services start
       systemd.services.nextcloud-fix-permissions = {
         description = "Fix Nextcloud directory permissions";
-        wantedBy = [ "multi-user.target" ];
-        after = [ "systemd-tmpfiles-setup.service" ];
-        before = [ "nextcloud-setup.service" "phpfpm-nextcloud.service" ];
+        wantedBy = ["multi-user.target"];
+        after = ["systemd-tmpfiles-setup.service"];
+        before = ["nextcloud-setup.service" "phpfpm-nextcloud.service"];
         script = ''
           if [ -d ${cfg.dataDir} ]; then
             chown -R nextcloud:nextcloud ${cfg.dataDir} || true

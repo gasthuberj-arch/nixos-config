@@ -1,8 +1,10 @@
-{ config, lib, pkgs, ... }:
-
-with lib;
-
-let
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
+with lib; let
   cfg = config.services.authelia-custom;
 
   # Default users file with argon2id hashed password for "changeme"
@@ -15,8 +17,7 @@ let
         groups:
           - admins
   '';
-in
-{
+in {
   options.services.authelia-custom = {
     enable = mkEnableOption "Authelia SSO service";
 
@@ -161,13 +162,13 @@ in
           rules = [
             # Authelia portal itself is public
             {
-              domain = [ "auth.${cfg.domain}" ];
+              domain = ["auth.${cfg.domain}"];
               policy = "bypass";
             }
 
             # All other services require authentication
             {
-              domain = [ "*.${cfg.domain}" ];
+              domain = ["*.${cfg.domain}"];
               policy = "one_factor";
             }
           ];
@@ -303,8 +304,8 @@ in
     # Create systemd service to generate secrets if they don't exist
     systemd.services.authelia-generate-secrets = {
       description = "Generate Authelia secrets if they don't exist";
-      wantedBy = [ "multi-user.target" ];
-      before = [ "authelia-main.service" ];
+      wantedBy = ["multi-user.target"];
+      before = ["authelia-main.service"];
 
       script = ''
         SECRETS_DIR="/persist/secrets/authelia"
@@ -383,6 +384,6 @@ in
     };
 
     # Make authelia available in system packages for password hashing
-    environment.systemPackages = [ pkgs.authelia ];
+    environment.systemPackages = [pkgs.authelia];
   };
 }

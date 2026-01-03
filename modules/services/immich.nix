@@ -1,11 +1,13 @@
-{ config, lib, pkgs, pkgs-unstable, ... }:
-
-with lib;
-
-let
-  cfg = config.services.immich-custom;
-in
 {
+  config,
+  lib,
+  pkgs,
+  pkgs-unstable,
+  ...
+}:
+with lib; let
+  cfg = config.services.immich-custom;
+in {
   options.services.immich-custom = {
     enable = mkEnableOption "Immich photo management service";
 

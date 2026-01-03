@@ -1,6 +1,10 @@
-{ config, pkgs, lib, inputs, ... }:
-
 {
+  config,
+  pkgs,
+  lib,
+  inputs,
+  ...
+}: {
   imports = [
     ../../modules/zfs-root.nix
     ../../modules/services/caddy.nix
@@ -19,13 +23,13 @@
   # ZFS boot device configuration
   zfs-root = {
     bootDevices = [
-      "nvme-eui.e8238fa6bf530001001b444a41dec6c0"  # WD Blue SN580 1TB
-      "nvme-eui.0000000624098582caf25b0310000218"  # Lexar SSD NM790 1TB
+      "nvme-eui.e8238fa6bf530001001b444a41dec6c0" # WD Blue SN580 1TB
+      "nvme-eui.0000000624098582caf25b0310000218" # Lexar SSD NM790 1TB
     ];
     sataDevices = [
-      "wwn-0x5000c500e9cad552"  # ST4000VN006 - sda
-      "wwn-0x5000c500e9cb50d6"  # ST4000VN006 - sdb
-      "wwn-0x5000c500e99f1472"  # ST4000VN006 - sdc
+      "wwn-0x5000c500e9cad552" # ST4000VN006 - sda
+      "wwn-0x5000c500e9cb50d6" # ST4000VN006 - sdb
+      "wwn-0x5000c500e99f1472" # ST4000VN006 - sdc
     ];
   };
 
@@ -38,18 +42,18 @@
   boot.loader.grub.efiInstallAsRemovable = lib.mkForce false;
   boot.loader.grub.mirroredBoots = [
     {
-      devices = [ "nodev" ];
+      devices = ["nodev"];
       path = "/boot/efis/nvme-eui.0000000624098582caf25b0310000218-part2";
     }
   ];
 
   # ZFS configuration
-  boot.supportedFilesystems = [ "zfs" ];
+  boot.supportedFilesystems = ["zfs"];
   boot.zfs.forceImportRoot = false;
   networking.hostId = "8425e349"; # Required for ZFS
 
   # Load uinput kernel module for Sunshine virtual input devices
-  boot.kernelModules = [ "uinput" ];
+  boot.kernelModules = ["uinput"];
 
   # Set uinput permissions
   services.udev.extraRules = ''
@@ -73,19 +77,19 @@
 
   # Add nofail option to SATA pool mounts to prevent boot blocking
   fileSystems."/media" = {
-    options = [ "nofail" "x-systemd.after=zfs-import.target" ];
+    options = ["nofail" "x-systemd.after=zfs-import.target"];
   };
 
   fileSystems."/pictures" = {
-    options = [ "nofail" "x-systemd.after=zfs-import.target" ];
+    options = ["nofail" "x-systemd.after=zfs-import.target"];
   };
 
   fileSystems."/archive" = {
-    options = [ "nofail" "x-systemd.after=zfs-import.target" ];
+    options = ["nofail" "x-systemd.after=zfs-import.target"];
   };
 
   fileSystems."/backups" = {
-    options = [ "nofail" "x-systemd.after=zfs-import.target" ];
+    options = ["nofail" "x-systemd.after=zfs-import.target"];
   };
 
   # Impermanence - persist important files across reboots
@@ -137,8 +141,8 @@
   # Enable Wake-on-LAN for all ethernet interfaces
   systemd.services.enable-wol = {
     description = "Enable Wake-on-LAN on all ethernet interfaces";
-    after = [ "network.target" ];
-    wantedBy = [ "multi-user.target" ];
+    after = ["network.target"];
+    wantedBy = ["multi-user.target"];
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
@@ -225,28 +229,30 @@
 
   # GNOME settings to prevent screen from turning off
   programs.dconf.enable = true;
-  programs.dconf.profiles.user.databases = [{
-    settings = {
-      "org/gnome/desktop/session" = {
-        idle-delay = lib.gvariant.mkUint32 0;  # Never go idle
+  programs.dconf.profiles.user.databases = [
+    {
+      settings = {
+        "org/gnome/desktop/session" = {
+          idle-delay = lib.gvariant.mkUint32 0; # Never go idle
+        };
+        "org/gnome/desktop/screensaver" = {
+          lock-enabled = false;
+          idle-activation-enabled = false;
+        };
+        "org/gnome/settings-daemon/plugins/power" = {
+          sleep-inactive-ac-type = "nothing";
+          sleep-inactive-battery-type = "nothing";
+          idle-dim = false;
+        };
       };
-      "org/gnome/desktop/screensaver" = {
-        lock-enabled = false;
-        idle-activation-enabled = false;
-      };
-      "org/gnome/settings-daemon/plugins/power" = {
-        sleep-inactive-ac-type = "nothing";
-        sleep-inactive-battery-type = "nothing";
-        idle-dim = false;
-      };
-    };
-  }];
+    }
+  ];
 
   # User account
   users.users.johannes = {
     isNormalUser = true;
     description = "Johannes Gasthuber";
-    extraGroups = [ "networkmanager" "wheel" "video" "render" "input" ];
+    extraGroups = ["networkmanager" "wheel" "video" "render" "input"];
     initialPassword = "changeme";
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGEKnd5qMAsokd5qJ5ont28fwQVSNcQJ92mOm60pAf+/ johannes@laptop"
@@ -267,7 +273,7 @@
 
   # Firewall
   networking.firewall.enable = true;
-  networking.firewall.allowedTCPPorts = [ 22 ]; # Additional ports opened by services
+  networking.firewall.allowedTCPPorts = [22]; # Additional ports opened by services
 
   # Caddy reverse proxy
   services.caddy-custom = {
@@ -320,7 +326,7 @@
     prometheus = {
       enable = true;
       port = 9090;
-      retentionTime = "365d";  # Keep metrics for 1 year
+      retentionTime = "365d"; # Keep metrics for 1 year
     };
 
     # Loki log aggregation
@@ -331,9 +337,9 @@
 
     # Exporters for system monitoring
     exporters = {
-      node = true;      # System metrics (CPU, memory, disk, etc.)
-      systemd = true;   # Systemd service metrics
-      zfs = true;       # ZFS pool metrics
+      node = true; # System metrics (CPU, memory, disk, etc.)
+      systemd = true; # Systemd service metrics
+      zfs = true; # ZFS pool metrics
     };
   };
 
@@ -350,14 +356,14 @@
     # Emulators
     emulators = {
       enable = true;
-      retroarch = true;    # Multi-system emulator
-      dolphin = true;      # GameCube/Wii
-      pcsx2 = true;        # PlayStation 2
-      rpcs3 = true;        # PlayStation 3
+      retroarch = true; # Multi-system emulator
+      dolphin = true; # GameCube/Wii
+      pcsx2 = true; # PlayStation 2
+      rpcs3 = true; # PlayStation 3
       duckstation = false; # PlayStation 1 (disabled by default due to non-commercial license)
-      cemu = true;         # Wii U
-      ryubing = true;      # Nintendo Switch
-      ppsspp = true;       # PSP
+      cemu = true; # Wii U
+      ryubing = true; # Nintendo Switch
+      ppsspp = true; # PSP
     };
   };
 
@@ -370,12 +376,12 @@
     htop
     tmux
     zfs
-    ethtool  # For Wake-on-LAN configuration
+    ethtool # For Wake-on-LAN configuration
     tailscale
   ];
 
   # Enable flakes
-  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  nix.settings.experimental-features = ["nix-command" "flakes"];
 
   # Automatic garbage collection
   nix.gc = {

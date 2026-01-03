@@ -5,7 +5,7 @@ set -e
 # Configuration
 HOMELAB_IP="${HOMELAB_IP:-192.168.1.XXX}"  # Set via environment variable or replace XXX
 HOMELAB_USER="johannes"
-CONFIG_DIR="."
+CONFIG_DIR=$(pwd)
 
 # Colors for output
 RED='\033[0;31m'
@@ -102,7 +102,7 @@ run_cmd() {
 
 # Step 1: Copy configuration
 echo -e "${GREEN}Step 1: Copying configuration to homelab...${NC}"
-run_cmd "scp -r $CONFIG_DIR ${HOMELAB_USER}@${HOMELAB_IP}:/tmp/nixos-config || true"
+run_cmd "scp -r $CONFIG_DIR/* ${HOMELAB_USER}@${HOMELAB_IP}:/tmp/nixos-config || true"
 
 # Step 2: Deploy and rebuild
 echo -e "${GREEN}Step 2: Deploying configuration and rebuilding system...${NC}"

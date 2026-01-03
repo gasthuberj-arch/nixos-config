@@ -69,6 +69,13 @@ in
           '';
         };
 
+        "auth.${cfg.domain}" = mkIf config.services.authelia-custom.enable {
+              extraConfig = ''
+                tls internal
+                reverse_proxy 127.0.0.1:${toString config.services.authelia-custom.port}
+              '';
+        };
+
         # Paperless-ngx (if enabled) - accessible via domain
         "paperless.${cfg.domain}" = mkIf config.services.paperless-custom.enable {
           extraConfig = ''

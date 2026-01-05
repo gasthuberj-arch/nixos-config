@@ -15,6 +15,7 @@
     ../../modules/services/homeassistant.nix
     ../../modules/services/grafana.nix
     ../../modules/services/gaming.nix
+    ../../modules/services/obsidian-sync.nix
     ./hardware-configuration.nix
     ./disko-config.nix
     "${inputs.impermanence}/nixos.nix"
@@ -308,6 +309,11 @@
     hostName = "nextcloud.homelab.lan";
     maxUploadSize = "16G";
     # dataDir defaults to /var/lib/nextcloud (will be persisted)
+  };
+
+  services.obsidian-sync-custom = {
+    enable = true;
+    port = 5984;
   };
 
   # Home Assistant home automation

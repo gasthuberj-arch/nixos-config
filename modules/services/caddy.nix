@@ -38,6 +38,11 @@ with lib; let
       subdomain = "grafana";
       enable = config.services.grafana-custom.enable;
     }
+    {
+      name = "Obsidian Sync";
+      subdomain = "obsidian";
+      enable = config.services.obsidian-sync-custom.enable;
+    }
   ];
 
   enabledServices = builtins.filter (s: s.enable) myServices;
@@ -236,6 +241,16 @@ in {
           extraConfig = ''
             tls internal
             reverse_proxy localhost:${toString config.services.grafana-custom.port}
+          '';
+        };
+
+        "obsidian.${cfg.domain}" = mkIf config.services.obsidian-sync-custom.enable {
+          extraConfig = ''
+            tls internal
+            reverse_proxy localhost:${toString config.services.obsidian-sync-custom.port} {
+              header_up Host {host}
+              header_up X-Forwarded-Proto {scheme}
+            }
           '';
         };
       };

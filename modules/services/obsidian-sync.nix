@@ -1,0 +1,99 @@
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
+with lib; let
+  cfg = config.services.obsidian-sync-custom;
+in {
+  options.services.obsidian-sync-custom = {
+    enable = mkEnableOption "Obsidian LiveSync Server (CouchDB)";
+
+    port = mkOption {
+      type = types.port;
+      default = 5984;
+      description = "Port for the CouchDB sync server";
+    };
+
+    dataDir = mkOption {
+      type = types.str;
+      default = "/var/lib/couchdb";
+      description = "Path to store the sync database";
+    };
+  };
+
+  config = mkIf cfg.enable {
+    services.couchdb = {
+      enable = true;
+      port = cfg.port;
+      bindAddress = "127.0.0.1";
+      databaseDir = cfg.dataDir;
+
+      # FIXED: Now using an Attribute Set instead of a String
+      extraConfig = {
+        httpd = {
+          enable_cors = "true";
+          # Increase max request size for large attachments (e.g. 4GB)
+          max_http_request_size = "4294967296";
+        };
+
+        chttpd = {
+          require_valid_user = "true";
+          bind_address = "127.0.0.1";
+        };
+
+        cors = {
+          # Allow Obsidian Desktop and Mobile (Capacitor) to connect
+          origins = "app://obsidian.md,capacitor://localhost,http://localhost";
+          credentials = "true";
+          headers = "accept, authorization, content-type, origin, referer";
+          methods = "GET, PUT, POST, HEAD, DELETE";
+        };
+
+        couch_httpd_auth = {
+          require_valid_user = "true";
+          allow_persistent_cookies = "true";
+        };
+      };
+    };
+
+    # Ensure Data Directory exists with permissions
+    systemd.tmpfiles.rules = [
+      "d ${cfg.dataDir} 0770 couchdb couchdb -"
+    ];
+
+    # Setup Script: Create the 'obsidian' database automatically
+    systemd.services.obsidian-sync-init = {
+      description = "Initialize Obsidian Sync Database";
+      wantedBy = ["multi-user.target"];
+      after = ["couchdb.service"];
+      serviceConfig = {
+        Type = "oneshot";
+        User = "couchdb";
+        Group = "couchdb";
+      };
+      script = ''
+        # Wait for CouchDB to warm up
+        while ! ${pkgs.curl}/bin/curl -s http://127.0.0.1:${toString cfg.port}/_up > /dev/null; do
+          sleep 2
+        done
+
+        # Create the 'obsidian' database if it doesn't exist.
+        ${pkgs.curl}/bin/curl -X PUT http://127.0.0.1:${toString cfg.port}/obsidian || true
+      '';
+    };
+
+    # Persistence
+    environment.persistence."/persist" = {
+      directories = [
+        {
+          directory = cfg.dataDir;
+          user = "couchdb";
+          group = "couchdb";
+          mode = "0770";
+        }
+      ];
+    };
+  };
+}

@@ -6,108 +6,101 @@
 }:
 with lib; let
   cfg = config.services.gaming;
+  user = cfg.user;
+
+  # Helper to reduce repetition for emulator options
+  mkEmulator = name: desc: {
+    inherit name;
+    value = mkOption {
+      type = types.bool;
+      default = true;
+      description = desc;
+    };
+  };
 in {
   options.services.gaming = {
     enable = mkEnableOption "gaming services and emulators";
 
+    user = mkOption {
+      type = types.str;
+      default = "johannes";
+      description = "The user for gaming persistence and services";
+    };
+
     sunshine = {
       enable = mkEnableOption "Sunshine game streaming server";
+
       openFirewall = mkOption {
         type = types.bool;
+        default = false; # Default to FALSE for security (Rely on Tailscale)
+        description = "Open ports on the physical LAN. Keep false if using Tailscale.";
+      };
+
+      lockOnBoot = mkOption {
+        type = types.bool;
         default = true;
-        description = "Open firewall ports for Sunshine";
+        description = "Immediately lock the screen after auto-login to secure physical access.";
       };
     };
 
     emulators = {
       enable = mkEnableOption "gaming emulators";
-
-      retroarch = mkOption {
-        type = types.bool;
-        default = true;
-        description = "Install RetroArch (multi-system emulator)";
-      };
-
-      dolphin = mkOption {
-        type = types.bool;
-        default = true;
-        description = "Install Dolphin (GameCube/Wii emulator)";
-      };
-
-      pcsx2 = mkOption {
-        type = types.bool;
-        default = true;
-        description = "Install PCSX2 (PlayStation 2 emulator)";
-      };
-
-      rpcs3 = mkOption {
-        type = types.bool;
-        default = true;
-        description = "Install RPCS3 (PlayStation 3 emulator)";
-      };
+      # Generate options using the helper
+      retroarch = (mkEmulator "retroarch" "Multi-system emulator").value;
+      dolphin = (mkEmulator "dolphin" "GameCube/Wii emulator").value;
+      pcsx2 = (mkEmulator "pcsx2" "PS2 emulator").value;
+      rpcs3 = (mkEmulator "rpcs3" "PS3 emulator").value;
+      cemu = (mkEmulator "cemu" "Wii U emulator").value;
+      ryubing = (mkEmulator "ryubing" "Switch emulator (Ryubing)").value;
+      ppsspp = (mkEmulator "ppsspp" "PSP emulator").value;
 
       duckstation = mkOption {
         type = types.bool;
         default = false;
-        description = "Install DuckStation (PlayStation 1 emulator) - requires accepting non-commercial license";
-      };
-
-      cemu = mkOption {
-        type = types.bool;
-        default = true;
-        description = "Install Cemu (Wii U emulator)";
-      };
-
-      ryubing = mkOption {
-        type = types.bool;
-        default = true;
-        description = "Install Ryubing (Nintendo Switch emulator, formerly Ryujinx)";
-      };
-
-      ppsspp = mkOption {
-        type = types.bool;
-        default = true;
-        description = "Install PPSSPP (PSP emulator)";
+        description = "PS1 emulator (Non-commercial license)";
       };
     };
   };
 
   config = mkIf cfg.enable {
-    # Sunshine game streaming configuration
+
+    # --- Security: Firewall & Networking ---
+
+    # 1. Trust Tailscale implicitly
+    # This allows Sunshine to work perfectly over Tailscale without opening LAN ports.
+    networking.firewall.trustedInterfaces = [ "tailscale0" ];
+
+    # This mitigates the risk of "Auto Login". The user is logged in (so Sunshine starts),
+    # but the screen is immediately locked so nobody can physically use the PC.
+    systemd.user.services.secure-gaming-lock = mkIf (cfg.sunshine.enable && cfg.sunshine.lockOnBoot) {
+      description = "Lock screen immediately for secure auto-login";
+      after = [ "graphical-session.target" ];
+      partOf = [ "graphical-session.target" ];
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = "${pkgs.systemd}/bin/loginctl lock-session";
+        Restart = "on-failure";
+        RestartSec = "5s";
+      };
+      wantedBy = [ "graphical-session.target" ];
+    };
+
+    # --- Sunshine Service Configuration ---
+
     services.sunshine = mkIf cfg.sunshine.enable {
       enable = true;
       autoStart = true;
       capSysAdmin = true;
-      openFirewall = cfg.sunshine.openFirewall;
+      openFirewall = false; # Handled manually above
     };
 
-    # Set Wayland environment for Sunshine user service
+    # Fix Wayland environment for Sunshine
     systemd.user.services.sunshine = mkIf cfg.sunshine.enable {
-      serviceConfig = {
-        Environment = [
-          "WAYLAND_DISPLAY=wayland-0"
-        ];
-      };
+      serviceConfig.Environment = [ "WAYLAND_DISPLAY=wayland-0" ];
     };
 
-    # Firewall configuration for Sunshine
-    networking.firewall = mkIf (cfg.sunshine.enable && cfg.sunshine.openFirewall) {
-      allowedTCPPorts = [
-        47984 # HTTPS Web UI
-        47989 # HTTP Web UI
-        47990 # RTSP
-        48010 # Video stream
-      ];
-      allowedUDPPorts = [
-        47998 # Video
-        47999 # Control
-        48000 # Audio
-        48002 # Control
-        48010 # Video stream
-      ];
-    };
+    # --- Packages & Emulators ---
 
-    # Install emulators based on configuration
     environment.systemPackages = with pkgs;
       (optional cfg.sunshine.enable sunshine)
       ++ (optionals cfg.emulators.enable (
@@ -121,22 +114,21 @@ in {
         ++ (optional cfg.emulators.ppsspp ppsspp-qt)
       ));
 
-    # Enable OpenGL and Vulkan support for gaming
+    # --- Hardware & Performance ---
+
     hardware.graphics = {
       enable = true;
       enable32Bit = true;
     };
 
-    # Enable gamemode for performance optimization
     programs.gamemode.enable = mkIf cfg.emulators.enable true;
 
-    # Persist Sunshine configuration and emulator data
-    environment.persistence."/persist" = {
-      directories = mkIf cfg.sunshine.enable [
-        "/var/lib/sunshine"
-      ];
+    # --- Persistence ---
 
-      users.johannes.directories = mkIf cfg.emulators.enable [
+    environment.persistence."/persist" = {
+      directories = mkIf cfg.sunshine.enable [ "/var/lib/sunshine" ];
+
+      users.${user}.directories = mkIf cfg.emulators.enable [
         ".config/retroarch"
         ".config/dolphin-emu"
         ".config/PCSX2"
@@ -145,7 +137,7 @@ in {
         ".config/Cemu"
         ".config/Ryubing"
         ".config/ppsspp"
-        # Save data directories
+        # Save data
         ".local/share/dolphin-emu"
         ".local/share/PCSX2"
         ".local/share/rpcs3"

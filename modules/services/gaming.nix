@@ -63,26 +63,25 @@ in {
   };
 
   config = mkIf cfg.enable {
-
     # --- Security: Firewall & Networking ---
 
     # 1. Trust Tailscale implicitly
     # This allows Sunshine to work perfectly over Tailscale without opening LAN ports.
-    networking.firewall.trustedInterfaces = [ "tailscale0" ];
+    networking.firewall.trustedInterfaces = ["tailscale0"];
 
     # This mitigates the risk of "Auto Login". The user is logged in (so Sunshine starts),
     # but the screen is immediately locked so nobody can physically use the PC.
     systemd.user.services.secure-gaming-lock = mkIf (cfg.sunshine.enable && cfg.sunshine.lockOnBoot) {
       description = "Lock screen immediately for secure auto-login";
-      after = [ "graphical-session.target" ];
-      partOf = [ "graphical-session.target" ];
+      after = ["graphical-session.target"];
+      partOf = ["graphical-session.target"];
       serviceConfig = {
         Type = "oneshot";
         ExecStart = "${pkgs.systemd}/bin/loginctl lock-session";
         Restart = "on-failure";
         RestartSec = "5s";
       };
-      wantedBy = [ "graphical-session.target" ];
+      wantedBy = ["graphical-session.target"];
     };
 
     # --- Sunshine Service Configuration ---
@@ -96,7 +95,7 @@ in {
 
     # Fix Wayland environment for Sunshine
     systemd.user.services.sunshine = mkIf cfg.sunshine.enable {
-      serviceConfig.Environment = [ "WAYLAND_DISPLAY=wayland-0" ];
+      serviceConfig.Environment = ["WAYLAND_DISPLAY=wayland-0"];
     };
 
     # --- Packages & Emulators ---
@@ -126,7 +125,7 @@ in {
     # --- Persistence ---
 
     environment.persistence."/persist" = {
-      directories = mkIf cfg.sunshine.enable [ "/var/lib/sunshine" ];
+      directories = mkIf cfg.sunshine.enable ["/var/lib/sunshine"];
 
       users.${user}.directories = mkIf cfg.emulators.enable [
         ".config/retroarch"

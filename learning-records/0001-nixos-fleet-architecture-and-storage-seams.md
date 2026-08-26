@@ -1,0 +1,3 @@
+# Storage Seam Decoupling & Module Depth in Multi-Host NixOS
+
+Learned that filesystem impermanence (`/persist`) is a property of the host's storage layer, not the application modules. Placing `environment.persistence` inside reusable service modules pollutes the module interface and crashes evaluation on standard disks (RPi5/Orin); centralizing persistence in `hosts/<host>/persistence.nix` keeps service modules pure, reusable, and allows vanilla Nixpkgs services to run without custom wrappers. Furthermore, services should self-register into central infrastructure (e.g. Caddy virtual hosts) via module options rather than hardcoding lists in reverse proxy files.

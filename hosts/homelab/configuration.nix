@@ -1,12 +1,23 @@
 {
   config,
-  pkgs,
   lib,
   inputs,
   ...
 }: {
   imports = [
+    # System core baseline & profiles
+    ../../modules/core/base.nix
+    ../../modules/profiles/server.nix
+    ../../modules/profiles/desktop.nix
+
+    # Storage & Root modules
     ../../modules/zfs-root.nix
+    ./hardware-configuration.nix
+    ./disko-config.nix
+    ./persistence.nix
+    "${inputs.impermanence}/nixos.nix"
+
+    # Application service modules
     ../../modules/services/caddy.nix
     ../../modules/services/authelia.nix
     ../../modules/services/immich.nix
@@ -17,13 +28,9 @@
     ../../modules/services/gaming.nix
     ../../modules/services/obsidian-sync.nix
     ../../modules/services/hdd-spindown.nix
-    ./hardware-configuration.nix
-    ./disko-config.nix
-    ./persistence.nix
-    "${inputs.impermanence}/nixos.nix"
   ];
 
-  # ZFS boot device configuration
+  # --- ZFS Boot & Pool Hardware Configuration ---
   zfs-root = {
     bootDevices = [
       "nvme-eui.e8238fa6bf530001001b444a41dec6c0" # WD Blue SN580 1TB
@@ -36,12 +43,10 @@
     ];
   };
 
-  # Bootloader - mirrored EFI configuration
+  # Bootloader - Mirrored EFI configuration
   boot.loader.efi.canTouchEfiVariables = true;
   boot.loader.efi.efiSysMountPoint = "/boot/efis/nvme-eui.e8238fa6bf530001001b444a41dec6c0-part2";
   boot.loader.systemd-boot.enable = true;
-
-  # Mirror EFI partitions
   boot.loader.grub.efiInstallAsRemovable = lib.mkForce false;
   boot.loader.grub.mirroredBoots = [
     {
@@ -50,55 +55,39 @@
     }
   ];
 
-  # ZFS configuration
+  # ZFS filesystems & maintenance
   boot.supportedFilesystems = ["zfs"];
   boot.zfs.forceImportRoot = false;
-  networking.hostId = "8425e349"; # Required for ZFS
-
-  # Load uinput kernel module for Sunshine virtual input devices
-  boot.kernelModules = ["uinput"];
-
-  # Set uinput permissions
-  services.udev.extraRules = ''
-    KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess", OPTIONS+="static_node=uinput", GROUP="input", MODE="0660"
-  '';
+  networking.hostId = "8425e349";
 
   # Rollback root filesystem on boot (impermanence)
   boot.initrd.postDeviceCommands = lib.mkAfter ''
     zfs rollback -r rpool/nixos/empty@start
   '';
 
-  # ZFS services
   services.zfs.autoScrub.enable = true;
   services.zfs.autoScrub.interval = "monthly";
   services.zfs.trim.enable = true;
 
-  # Add neededForBoot flag for impermanence filesystems
+  # Filesystem mount options
   fileSystems."/persist".neededForBoot = true;
   fileSystems."/var/lib".neededForBoot = true;
   fileSystems."/home".neededForBoot = true;
 
-  # Add nofail option to SATA pool mounts to prevent boot blocking
-  fileSystems."/media" = {
-    options = ["nofail" "x-systemd.after=zfs-import.target"];
-  };
+  fileSystems."/media".options = ["nofail" "x-systemd.after=zfs-import.target"];
+  fileSystems."/pictures".options = ["nofail" "x-systemd.after=zfs-import.target"];
+  fileSystems."/archive".options = ["nofail" "x-systemd.after=zfs-import.target"];
+  fileSystems."/backups".options = ["nofail" "x-systemd.after=zfs-import.target"];
 
-  fileSystems."/pictures" = {
-    options = ["nofail" "x-systemd.after=zfs-import.target"];
-  };
+  # --- Virtual Input Devices (Sunshine Game Streaming) ---
+  boot.kernelModules = ["uinput"];
+  services.udev.extraRules = ''
+    KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess", OPTIONS+="static_node=uinput", GROUP="input", MODE="0660"
+  '';
 
-  fileSystems."/archive" = {
-    options = ["nofail" "x-systemd.after=zfs-import.target"];
-  };
-
-  fileSystems."/backups" = {
-    options = ["nofail" "x-systemd.after=zfs-import.target"];
-  };
-
-  # Hostname
+  # --- Networking & Host Identification ---
   networking.hostName = "homelab";
-
-  # Local hostname resolution for Caddy virtual hosts
+  networking.networkmanager.enable = true;
   networking.hosts = {
     "127.0.0.1" = [
       "homelab.lan"
@@ -108,160 +97,16 @@
       "nextcloud.homelab.lan"
       "homeassistant.homelab.lan"
       "grafana.homelab.lan"
+      "obsidian.homelab.lan"
     ];
   };
 
-  # Enable networking
-  networking.networkmanager.enable = true;
-
-  # Enable Wake-on-LAN for all ethernet interfaces
-  systemd.services.enable-wol = {
-    description = "Enable Wake-on-LAN on all ethernet interfaces";
-    after = ["network.target"];
-    wantedBy = ["multi-user.target"];
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-    };
-    script = ''
-      # Enable WoL on all ethernet interfaces
-      for interface in $(${pkgs.iproute2}/bin/ip -o link show | ${pkgs.gnugrep}/bin/grep -v 'link/loopback' | ${pkgs.gawk}/bin/awk -F': ' '{print $2}' | ${pkgs.gnused}/bin/sed 's/@.*//'); do
-        if ${pkgs.ethtool}/bin/ethtool "$interface" 2>/dev/null | ${pkgs.gnugrep}/bin/grep -q "Supports Wake-on"; then
-          echo "Enabling Wake-on-LAN for $interface"
-          ${pkgs.ethtool}/bin/ethtool -s "$interface" wol g || true
-        fi
-      done
-    '';
-  };
-
-  # Set your time zone
-  time.timeZone = "Europe/Berlin";
-
-  # Select internationalisation properties
-  i18n.defaultLocale = "en_US.UTF-8";
-  i18n.extraLocaleSettings = {
-    LC_ADDRESS = "de_DE.UTF-8";
-    LC_IDENTIFICATION = "de_DE.UTF-8";
-    LC_MEASUREMENT = "de_DE.UTF-8";
-    LC_MONETARY = "de_DE.UTF-8";
-    LC_NAME = "de_DE.UTF-8";
-    LC_NUMERIC = "de_DE.UTF-8";
-    LC_PAPER = "de_DE.UTF-8";
-    LC_TELEPHONE = "de_DE.UTF-8";
-    LC_TIME = "de_DE.UTF-8";
-  };
-
-  # Enable the X11 windowing system
-  services.xserver.enable = true;
-
-  # Enable the GNOME Desktop Environment
-  services.displayManager.gdm.enable = true;
-  services.displayManager.gdm.wayland = true;
-  services.displayManager.autoLogin = {
-    enable = true;
-    user = "johannes";
-  };
-  services.desktopManager.gnome.enable = true;
-
-  # Workaround for GDM autologin bug
-  systemd.services."getty@tty1".enable = false;
-  systemd.services."autovt@tty1".enable = false;
-
-  # Configure keymap in X11
-  services.xserver.xkb = {
-    layout = "us";
-    variant = "";
-  };
-
-  # Enable CUPS to print documents
-  services.printing.enable = true;
-
-  # Enable sound with pipewire.
-  services.pulseaudio.enable = false;
-  security.rtkit.enable = true;
-  services.pipewire = {
-    enable = true;
-    alsa.enable = true;
-    alsa.support32Bit = true;
-    pulse.enable = true;
-  };
-
-  # Disable automatic suspension
-  systemd.targets.sleep.enable = false;
-  systemd.targets.suspend.enable = false;
-  systemd.targets.hibernate.enable = false;
-  systemd.targets.hybrid-sleep.enable = false;
-
-  # Prevent GNOME from suspending on idle
-  services.displayManager.gdm.autoSuspend = false;
-
-  # Disable GNOME screen blanking and power management
-  services.xserver.displayManager.sessionCommands = ''
-    # Disable screen blanking
-    ${pkgs.xorg.xset}/bin/xset s off
-    ${pkgs.xorg.xset}/bin/xset -dpms
-    ${pkgs.xorg.xset}/bin/xset s noblank
-  '';
-
-  # GNOME settings to prevent screen from turning off
-  programs.dconf.enable = true;
-  programs.dconf.profiles.user.databases = [
-    {
-      settings = {
-        "org/gnome/desktop/session" = {
-          idle-delay = lib.gvariant.mkUint32 0; # Never go idle
-        };
-        "org/gnome/desktop/screensaver" = {
-          lock-enabled = false;
-          idle-activation-enabled = false;
-        };
-        "org/gnome/settings-daemon/plugins/power" = {
-          sleep-inactive-ac-type = "nothing";
-          sleep-inactive-battery-type = "nothing";
-          idle-dim = false;
-        };
-      };
-    }
-  ];
-
-  # User account
-  users.users.johannes = {
-    isNormalUser = true;
-    description = "Johannes Gasthuber";
-    extraGroups = ["networkmanager" "wheel" "video" "render" "input"];
-    initialPassword = "changeme";
-    openssh.authorizedKeys.keys = [
-      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGEKnd5qMAsokd5qJ5ont28fwQVSNcQJ92mOm60pAf+/ johannes@laptop"
-      "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC0TsfKFP+0G6y3XdH31d9b92DIlw/xzozb8wBowwucy9DBPgtS0pBKFxhjnO3rcx7g6Z1ARKUNyjd0aGqUjc253v6nedakFfR0QEhEiNVTCg3I4RwP2JQ57hzoGPA9WmHgN/z0KD/lgFdQ5vytvHwoK8ig1U884qPnx029WgzzCaVGHiTf6xtSXVQkk23wkIrQNu53knz7A0WbxbyYv92p0ajjZYMz81T9avt+Kh9prgzxFkzHYZULrvdui08SDQYloxo+yRzRghWZfxSCWSTpPV9NU6ldMNepZ7HwY84uD8ow5Ihbh7A+CbLPCYkVl6Z3sU3epCaYQIPgg6KFyeaZ2Be5GP/Lx6wPTFZugoL5FBOeJwFepOCcn7qVsyL1SrYm5XyNr2oimHnVTZBVFNY+cawXvD27dzJ2ML3w99fzpktnuaY1gnuxy+9l24wCFVE7CHkQwz8mkF8VixE3MRn1K/zvk/aWJ2twRp4Tws9OTKZq0g2xs3YSitVHk5DQDG8= johannes@pop-os"
-    ];
-  };
-
-  # Security and sudo
-  security.sudo.wheelNeedsPassword = false;
-
-  # Enable SSH
-  services.openssh = {
-    enable = true;
-    settings = {
-      PermitRootLogin = "no";
-      PasswordAuthentication = true;
-    };
-  };
-
-  # Tailscale
-  services.tailscale.enable = true;
-
-  # Firewall
-  networking.firewall.enable = true;
-  networking.firewall.allowedTCPPorts = [22]; # Additional ports opened by services
-
-  # Homelab Services
+  # --- Declarative Homelab Application Services ---
   homelab.services = {
     # Caddy reverse proxy engine
     caddy = {
       enable = true;
       domain = "homelab.lan";
-      # email = "your-email@example.com";
     };
 
     # Authelia SSO
@@ -313,85 +158,43 @@
     grafana = {
       enable = true;
       port = 3000;
-
-      # Prometheus metrics collection
       prometheus = {
         enable = true;
         port = 9090;
-        retentionTime = "365d"; # Keep metrics for 1 year
+        retentionTime = "365d";
       };
-
-      # Loki log aggregation
       loki = {
         enable = true;
         port = 3100;
       };
-
-      # Exporters for system monitoring
       exporters = {
-        node = true; # System metrics (CPU, memory, disk, etc.)
-        systemd = true; # Systemd service metrics
-        zfs = true; # ZFS pool metrics
+        node = true;
+        systemd = true;
+        zfs = true;
       };
     };
 
     # Gaming services and emulators
     gaming = {
       enable = true;
-
-      # Sunshine game streaming
       sunshine = {
         enable = true;
         openFirewall = true;
       };
-
-      # Emulators
       emulators = {
         enable = true;
-        retroarch = true; # Multi-system emulator
-        dolphin = true; # GameCube/Wii
-        pcsx2 = true; # PlayStation 2
-        rpcs3 = true; # PlayStation 3
-        duckstation = false; # PlayStation 1
-        cemu = true; # Wii U
-        ryubing = true; # Nintendo Switch
-        ppsspp = true; # PSP
+        retroarch = true;
+        dolphin = true;
+        pcsx2 = true;
+        rpcs3 = true;
+        duckstation = false;
+        cemu = true;
+        ryubing = true;
+        ppsspp = true;
       };
     };
   };
 
-  # System packages
-  environment.systemPackages = with pkgs; [
-    vim
-    git
-    wget
-    curl
-    htop
-    tmux
-    zfs
-    ethtool # For Wake-on-LAN configuration
-    tailscale
-  ];
-
-  # Allow unfree packages
-  nixpkgs.config.allowUnfree = true;
-
-  # Nix configuration
-  nix.settings = {
-    experimental-features = ["nix-command" "flakes"];
-    accept-flake-config = true;
-  };
-
-  # Automatic garbage collection
-  nix.gc = {
-    automatic = true;
-    dates = "weekly";
-    options = "--delete-older-than 30d";
-  };
-
-  # This value determines the NixOS release from which the default
-  # settings for stateful data, like file locations and database versions
-  # on your system were taken. It's perfectly fine and recommended to leave
-  # this value at the release version of the first install of this system.
-  system.stateVersion = "25.11";
+  # State version
+  system.stateVersion = "24.11";
 }

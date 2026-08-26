@@ -139,15 +139,12 @@ in {
         };
       };
 
-      # Ensure nextcloud-setup automatically patches stale store paths before executing occ upgrade
+      # Ensure nextcloud-setup refreshes declarative override.config.php symlink before running migrations
       systemd.services.nextcloud-setup = {
         wants = ["nextcloud-fix-permissions.service"];
         after = ["nextcloud-fix-permissions.service"];
         preStart = ''
-          if [ -f ${cfg.dataDir}/config/config.php ]; then
-            CURRENT_APPS="${config.services.nextcloud.package}/apps"
-            ${pkgs.gnused}/bin/sed -i -E "s|'path' => '/nix/store/[^/]+/apps'|'path' => '$CURRENT_APPS'|g" ${cfg.dataDir}/config/config.php
-          fi
+          ${pkgs.systemd}/bin/systemd-tmpfiles --create --prefix=${cfg.dataDir}/config
         '';
       };
 

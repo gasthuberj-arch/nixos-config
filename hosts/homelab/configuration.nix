@@ -16,6 +16,7 @@
     ../../modules/services/grafana.nix
     ../../modules/services/gaming.nix
     ../../modules/services/obsidian-sync.nix
+    ../../modules/services/hdd-spindown.nix
     ./hardware-configuration.nix
     ./disko-config.nix
     "${inputs.impermanence}/nixos.nix"
@@ -318,6 +319,13 @@
   services.obsidian-sync-custom = {
     enable = true;
     port = 5984;
+  };
+
+  # Automatic HDD Spindown for SATA RAIDZ1 cold storage
+  services.hdd-spindown = {
+    enable = true;
+    devices = config.zfs-root.sataDevices;
+    spindownTimeout = 180; # 15 minutes
   };
 
   # Home Assistant home automation

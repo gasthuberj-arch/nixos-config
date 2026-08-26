@@ -387,6 +387,9 @@
     tailscale
   ];
 
+  # Allow unfree packages
+  nixpkgs.config.allowUnfree = true;
+
   # Nix configuration
   nix.settings = {
     experimental-features = ["nix-command" "flakes"];

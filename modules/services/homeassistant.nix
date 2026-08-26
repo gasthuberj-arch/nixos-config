@@ -76,18 +76,6 @@ in {
       };
     };
 
-    # Persist Home Assistant data across reboots
-    environment.persistence."/persist" = {
-      directories = [
-        {
-          directory = cfg.dataDir;
-          user = "hass";
-          group = "hass";
-          mode = "0750";
-        }
-      ];
-    };
-
     # Open firewall if requested
     networking.firewall.allowedTCPPorts = mkIf cfg.openFirewall [cfg.port];
   };

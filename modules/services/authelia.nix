@@ -365,24 +365,6 @@ in {
       "d /persist/secrets/authelia 0700 authelia-main authelia-main -"
     ];
 
-    # Persist Authelia data across reboots
-    environment.persistence."/persist" = {
-      directories = [
-        {
-          directory = "/var/lib/authelia-main";
-          user = "authelia-main";
-          group = "authelia-main";
-          mode = "0700";
-        }
-        {
-          directory = "/persist/secrets/authelia";
-          user = "authelia-main";
-          group = "authelia-main";
-          mode = "0700";
-        }
-      ];
-    };
-
     # Make authelia available in system packages for password hashing
     environment.systemPackages = [pkgs.authelia];
   };

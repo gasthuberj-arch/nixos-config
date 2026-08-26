@@ -103,17 +103,5 @@ in {
         RemainAfterExit = true;
       };
     };
-
-    # Persist Paperless data across reboots
-    environment.persistence."/persist" = {
-      directories = [
-        {
-          directory = cfg.dataDir;
-          user = "paperless";
-          group = "paperless";
-          mode = "0750";
-        }
-      ];
-    };
   };
 }

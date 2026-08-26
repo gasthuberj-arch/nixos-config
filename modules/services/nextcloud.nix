@@ -147,26 +147,6 @@ in {
           ${pkgs.systemd}/bin/systemd-tmpfiles --create --prefix=${cfg.dataDir}/config
         '';
       };
-
-      # Persist Nextcloud data across reboots
-      environment.persistence."/persist" = {
-        directories = [
-          {
-            directory = cfg.dataDir;
-            user = "nextcloud";
-            group = "nextcloud";
-            mode = "0750";
-          }
-          # Note: /var/lib/postgresql is already persisted by immich.nix
-          # since both services share the same PostgreSQL instance
-          {
-            directory = "/var/lib/redis-nextcloud";
-            user = "redis-nextcloud";
-            group = "redis-nextcloud";
-            mode = "0750";
-          }
-        ];
-      };
     })
 
     # Configure nginx outside of the main mkIf to avoid scoping issues

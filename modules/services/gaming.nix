@@ -121,28 +121,5 @@ in {
     };
 
     programs.gamemode.enable = mkIf cfg.emulators.enable true;
-
-    # --- Persistence ---
-
-    environment.persistence."/persist" = {
-      directories = mkIf cfg.sunshine.enable ["/var/lib/sunshine"];
-
-      users.${user}.directories = mkIf cfg.emulators.enable [
-        ".config/retroarch"
-        ".config/dolphin-emu"
-        ".config/PCSX2"
-        ".config/rpcs3"
-        ".config/duckstation"
-        ".config/Cemu"
-        ".config/Ryubing"
-        ".config/ppsspp"
-        # Save data
-        ".local/share/dolphin-emu"
-        ".local/share/PCSX2"
-        ".local/share/rpcs3"
-        ".local/share/duckstation"
-        ".local/share/Ryubing"
-      ];
-    };
   };
 }

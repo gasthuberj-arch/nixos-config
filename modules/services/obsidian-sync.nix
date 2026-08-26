@@ -83,17 +83,5 @@ in {
         ${pkgs.curl}/bin/curl -X PUT http://127.0.0.1:${toString cfg.port}/obsidian || true
       '';
     };
-
-    # Persistence
-    environment.persistence."/persist" = {
-      directories = [
-        {
-          directory = cfg.dataDir;
-          user = "couchdb";
-          group = "couchdb";
-          mode = "0770";
-        }
-      ];
-    };
   };
 }

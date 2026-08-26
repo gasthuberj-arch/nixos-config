@@ -63,32 +63,5 @@ in {
       "d ${cfg.mediaLocation} 0750 immich immich -"
       "d ${cfg.uploadLocation} 0750 immich immich -"
     ];
-
-    # Persist Immich data across reboots
-    environment.persistence."/persist" = {
-      directories = [
-        {
-          directory = "/var/lib/immich";
-          user = "immich";
-          group = "immich";
-          mode = "0750";
-        }
-        {
-          directory = "/var/lib/postgresql";
-          user = "postgres";
-          group = "postgres";
-          mode = "0750";
-        }
-        {
-          directory = "/var/lib/redis-immich";
-          user = "redis-immich";
-          group = "redis-immich";
-          mode = "0750";
-        }
-      ];
-    };
-
-    # Note: Media location (/pictures) is already persisted via ZFS mount
-    # No need to add it to environment.persistence
   };
 }

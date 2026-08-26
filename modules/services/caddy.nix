@@ -263,17 +263,5 @@ in {
     systemd.tmpfiles.rules = [
       "d /var/lib/caddy 0750 caddy caddy -"
     ];
-
-    # Persist Caddy data across reboots
-    environment.persistence."/persist" = {
-      directories = [
-        {
-          directory = "/var/lib/caddy";
-          user = "caddy";
-          group = "caddy";
-          mode = "0750";
-        }
-      ];
-    };
   };
 }

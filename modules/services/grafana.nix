@@ -410,42 +410,6 @@ in {
       };
     };
 
-    # Persist monitoring data across reboots
-    environment.persistence."/persist" = {
-      directories = [
-        {
-          directory = cfg.dataDir;
-          user = "grafana";
-          group = "grafana";
-          mode = "0750";
-        }
-        (mkIf cfg.prometheus.enable {
-          directory = "/var/lib/prometheus2";
-          user = "prometheus";
-          group = "prometheus";
-          mode = "0750";
-        })
-        (mkIf cfg.loki.enable {
-          directory = "/var/lib/loki";
-          user = "loki";
-          group = "loki";
-          mode = "0750";
-        })
-        (mkIf cfg.loki.enable {
-          directory = "/var/lib/promtail";
-          user = "promtail";
-          group = "promtail";
-          mode = "0750";
-        })
-        {
-          directory = "/persist/secrets/grafana";
-          user = "grafana";
-          group = "grafana";
-          mode = "0700";
-        }
-      ];
-    };
-
     # System packages for debugging
     environment.systemPackages = with pkgs;
       [

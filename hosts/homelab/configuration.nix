@@ -19,6 +19,7 @@
     ../../modules/services/hdd-spindown.nix
     ./hardware-configuration.nix
     ./disko-config.nix
+    ./persistence.nix
     "${inputs.impermanence}/nixos.nix"
   ];
 
@@ -92,33 +93,6 @@
 
   fileSystems."/backups" = {
     options = ["nofail" "x-systemd.after=zfs-import.target"];
-  };
-
-  # Impermanence - persist important files across reboots
-  environment.persistence."/persist" = {
-    hideMounts = true;
-    directories = [
-      # Note: /var/log and /var/lib have dedicated ZFS datasets mounted directly
-      # Only persist specific subdirectories of /var/lib that need persistence
-    ];
-    files = [
-      "/etc/machine-id"
-      "/etc/ssh/ssh_host_ed25519_key"
-      "/etc/ssh/ssh_host_ed25519_key.pub"
-      "/etc/ssh/ssh_host_rsa_key"
-      "/etc/ssh/ssh_host_rsa_key.pub"
-    ];
-    users.johannes = {
-      directories = [
-        "Downloads"
-        "Documents"
-        "Pictures"
-        "Videos"
-        ".config"
-        ".local"
-        ".ssh"
-      ];
-    };
   };
 
   # Hostname

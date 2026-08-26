@@ -17,6 +17,9 @@
     };
   };
 
+  # Allow unfree packages
+  nixpkgs.config.allowUnfree = true;
+
   # Time and Locale settings
   time.timeZone = "Europe/Berlin";
 

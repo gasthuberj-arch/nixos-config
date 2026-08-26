@@ -117,9 +117,9 @@ in {
         "Z ${cfg.dataDir} 0750 nextcloud nextcloud -"
       ];
 
-      # Fix permissions on existing directories and auto-update store paths before services start
+      # Fix permissions on existing directories before services start
       systemd.services.nextcloud-fix-permissions = {
-        description = "Fix Nextcloud directory permissions and store paths";
+        description = "Fix Nextcloud directory permissions";
         wantedBy = ["multi-user.target"];
         after = ["systemd-tmpfiles-setup.service"];
         before = ["nextcloud-setup.service" "phpfpm-nextcloud.service"];
@@ -132,16 +132,23 @@ in {
             chown -R redis-nextcloud:redis-nextcloud /var/lib/redis-nextcloud || true
             chmod -R 0750 /var/lib/redis-nextcloud || true
           fi
-          # Automatically fix stale Nix store paths in config.php on Nextcloud upgrades
-          if [ -f ${cfg.dataDir}/config/config.php ]; then
-            CURRENT_APPS="${config.services.nextcloud.package}/apps"
-            ${pkgs.gnused}/bin/sed -i -E "s|'path' => '/nix/store/[^/]+/apps'|'path' => '$CURRENT_APPS'|g" ${cfg.dataDir}/config/config.php
-          fi
         '';
         serviceConfig = {
           Type = "oneshot";
           RemainAfterExit = true;
         };
+      };
+
+      # Ensure nextcloud-setup automatically patches stale store paths before executing occ upgrade
+      systemd.services.nextcloud-setup = {
+        wants = ["nextcloud-fix-permissions.service"];
+        after = ["nextcloud-fix-permissions.service"];
+        preStart = ''
+          if [ -f ${cfg.dataDir}/config/config.php ]; then
+            CURRENT_APPS="${config.services.nextcloud.package}/apps"
+            ${pkgs.gnused}/bin/sed -i -E "s|'path' => '/nix/store/[^/]+/apps'|'path' => '$CURRENT_APPS'|g" ${cfg.dataDir}/config/config.php
+          fi
+        '';
       };
 
       # Persist Nextcloud data across reboots

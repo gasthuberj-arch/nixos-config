@@ -261,6 +261,9 @@
     ];
   };
 
+  # Security and sudo
+  security.sudo.wheelNeedsPassword = false;
+
   # Enable SSH
   services.openssh = {
     enable = true;

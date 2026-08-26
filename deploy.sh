@@ -3,7 +3,7 @@
 set -e
 
 # Configuration
-HOMELAB_IP="${HOMELAB_IP:-192.168.1.XXX}"  # Set via environment variable or replace XXX
+HOMELAB_IP="${HOMELAB_IP:-192.168.1.101}"
 HOMELAB_USER="johannes"
 CONFIG_DIR=$(pwd)
 
@@ -31,13 +31,13 @@ Examples:
     $0
 
     # Deploy to specific IP
-    $0 --ip 192.168.1.100
+    $0 --ip 192.168.1.101
 
     # Deploy with custom user
-    $0 --user admin --ip 192.168.1.100
+    $0 --user johannes --ip 192.168.1.101
 
     # Use environment variable
-    HOMELAB_IP=192.168.1.100 $0
+    HOMELAB_IP=192.168.1.101 $0
 EOF
 }
 
@@ -70,10 +70,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Validate IP is set
-if [[ "$HOMELAB_IP" == "192.168.1.XXX" ]]; then
+if [[ -z "$HOMELAB_IP" ]]; then
     echo -e "${RED}Error: HOMELAB_IP not set!${NC}"
     echo "Set it via environment variable or use --ip flag"
-    echo "Example: HOMELAB_IP=192.168.1.100 $0"
+    echo "Example: HOMELAB_IP=192.168.1.101 $0"
     exit 1
 fi
 
@@ -102,11 +102,12 @@ run_cmd() {
 
 # Step 1: Copy configuration
 echo -e "${GREEN}Step 1: Copying configuration to homelab...${NC}"
-run_cmd "scp -r $CONFIG_DIR/* ${HOMELAB_USER}@${HOMELAB_IP}:/tmp/nixos-config || true"
+run_cmd "ssh ${HOMELAB_USER}@${HOMELAB_IP} 'mkdir -p /tmp/nixos-config'"
+run_cmd "rsync -avz --delete --exclude '.jj' $CONFIG_DIR/ ${HOMELAB_USER}@${HOMELAB_IP}:/tmp/nixos-config/"
 
 # Step 2: Deploy and rebuild
 echo -e "${GREEN}Step 2: Deploying configuration and rebuilding system...${NC}"
-run_cmd "ssh -t ${HOMELAB_USER}@${HOMELAB_IP} 'sudo rm -rf /etc/nixos/* && sudo mv /tmp/nixos-config/* /etc/nixos/ && sudo nixos-rebuild switch --flake /etc/nixos#homelab'"
+run_cmd "ssh -t ${HOMELAB_USER}@${HOMELAB_IP} 'sudo mkdir -p /etc/nixos && sudo rsync -av --delete /tmp/nixos-config/ /etc/nixos/ && sudo nixos-rebuild switch --flake /etc/nixos#homelab'"
 
 if [[ "$DRY_RUN" == "false" ]]; then
     echo ""

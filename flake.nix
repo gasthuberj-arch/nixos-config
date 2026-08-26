@@ -1,9 +1,19 @@
 {
   description = "NixOS server configuration";
 
+  nixConfig = {
+    extra-substituters = [
+      "https://nixos-raspberrypi.cachix.org"
+    ];
+    extra-trusted-public-keys = [
+      "nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI="
+    ];
+  };
+
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixos-raspberrypi.url = "github:nvmd/nixos-raspberrypi/main";
 
     disko = {
       url = "github:nix-community/disko";
@@ -24,12 +34,14 @@
     self,
     nixpkgs,
     nixpkgs-unstable,
+    nixos-raspberrypi,
     disko,
     impermanence,
     sops-nix,
     ...
   } @ inputs: let
     system = "x86_64-linux";
+    rpiSystem = "aarch64-linux";
 
     pkgs = import nixpkgs {
       inherit system;
@@ -96,9 +108,20 @@
           }
         ];
       };
+
+      rpi5 = nixos-raspberrypi.lib.nixosSystem {
+        system = rpiSystem;
+        specialArgs = inputs // {inherit nixos-raspberrypi;};
+        modules = [
+          ./hosts/rpi5/configuration.nix
+        ];
+      };
     };
     formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.alejandra;
     # ISO image output
-    packages.x86_64-linux.iso = self.nixosConfigurations.homelab-installer.config.system.build.isoImage;
+    packages.x86_64-linux = {
+      iso = self.nixosConfigurations.homelab-installer.config.system.build.isoImage;
+      rpi5-sd-image = self.nixosConfigurations.rpi5.config.system.build.sdImage;
+    };
   };
 }

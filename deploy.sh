@@ -1,64 +1,98 @@
 #!/usr/bin/env bash
 
-set -e
+set -euo pipefail
 
-# Configuration
-HOMELAB_IP="${HOMELAB_IP:-192.168.1.101}"
-HOMELAB_USER="johannes"
-CONFIG_DIR=$(pwd)
+# Default configuration
+HOST="${1:-homelab}"
+if [[ "$HOST" == -* ]]; then
+  HOST="homelab"
+else
+  shift 1 || true
+fi
 
-# Colors for output
+DEFAULT_IP=""
+case "$HOST" in
+  homelab) DEFAULT_IP="192.168.1.101" ;;
+  rpi5)    DEFAULT_IP="rpi5.lan" ;;
+  orin)    DEFAULT_IP="orin.lan" ;;
+  *)       DEFAULT_IP="${HOST}.lan" ;;
+esac
+
+TARGET_IP="${DEPLOY_IP:-$DEFAULT_IP}"
+TARGET_USER="${DEPLOY_USER:-johannes}"
+ACTION="switch"
+EXTRA_ARGS=()
+
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+BLUE='\033[0;34m'
+NC='\033[0m'
 
-# Print usage
 usage() {
     cat << EOF
-Usage: $0 [OPTIONS]
+Usage: $0 [HOST] [OPTIONS]
 
-Deploy NixOS configuration to homelab server.
+Deploy NixOS configuration to any host in the flake.
+
+Hosts:
+    homelab (default)       x86_64 homelab server (default IP: 192.168.1.101)
+    rpi5                    Raspberry Pi 5 node (default: rpi5.lan)
+    <any-flake-host>        Any host defined in nixosConfigurations.<host>
 
 Options:
     -h, --help              Show this help message
-    -i, --ip IP_ADDRESS     Homelab IP address (default: $HOMELAB_IP)
-    -u, --user USERNAME     SSH username (default: $HOMELAB_USER)
-    --dry-run               Show what would be done without executing
+    -i, --ip IP_OR_HOST     Target IP address or hostname (default: $DEFAULT_IP)
+    -u, --user USERNAME     SSH username (default: $TARGET_USER)
+    --test                  Build and activate without adding to bootloader menu
+    --boot                  Build and add to bootloader without switching immediately
+    --build                 Only build the system closure, do not activate
+    --dry-run               Show the command without executing
+    --show-trace            Pass --show-trace to Nix evaluation
 
 Examples:
-    # Deploy using default settings
-    $0
-
-    # Deploy to specific IP
-    $0 --ip 192.168.1.101
-
-    # Deploy with custom user
-    $0 --user johannes --ip 192.168.1.101
-
-    # Use environment variable
-    HOMELAB_IP=192.168.1.101 $0
+    $0                      # Deploy homelab
+    $0 rpi5                 # Deploy rpi5
+    $0 homelab --ip 192.168.1.101
+    $0 rpi5 --test
 EOF
 }
 
-# Parse arguments
 DRY_RUN=false
+
 while [[ $# -gt 0 ]]; do
-    case $1 in
+    case "$1" in
         -h|--help)
             usage
             exit 0
             ;;
         -i|--ip)
-            HOMELAB_IP="$2"
+            TARGET_IP="$2"
             shift 2
             ;;
         -u|--user)
-            HOMELAB_USER="$2"
+            TARGET_USER="$2"
             shift 2
+            ;;
+        --test)
+            ACTION="test"
+            shift
+            ;;
+        --boot)
+            ACTION="boot"
+            shift
+            ;;
+        --build)
+            ACTION="build"
+            shift
             ;;
         --dry-run)
             DRY_RUN=true
+            shift
+            ;;
+        --show-trace)
+            EXTRA_ARGS+=("--show-trace")
             shift
             ;;
         *)
@@ -69,51 +103,40 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Validate IP is set
-if [[ -z "$HOMELAB_IP" ]]; then
-    echo -e "${RED}Error: HOMELAB_IP not set!${NC}"
-    echo "Set it via environment variable or use --ip flag"
-    echo "Example: HOMELAB_IP=192.168.1.101 $0"
-    exit 1
-fi
+TARGET_DEST="${TARGET_USER}@${TARGET_IP}"
 
-# Print configuration
-echo -e "${GREEN}=== Deployment Configuration ===${NC}"
-echo "Target: ${HOMELAB_USER}@${HOMELAB_IP}"
-echo "Config: ${CONFIG_DIR}"
-echo "Dry run: ${DRY_RUN}"
+echo -e "${BLUE}=== Multi-Host NixOS Deployment ===${NC}"
+echo -e "Host:       ${GREEN}${HOST}${NC}"
+echo -e "Target:     ${GREEN}${TARGET_DEST}${NC}"
+echo -e "Action:     ${GREEN}${ACTION}${NC}"
 echo ""
 
-# Check if config directory exists
-if [[ ! -d "$CONFIG_DIR" ]]; then
-    echo -e "${RED}Error: Configuration directory '$CONFIG_DIR' not found${NC}"
-    exit 1
-fi
-
-# Function to run or echo commands
-run_cmd() {
-    if [[ "$DRY_RUN" == "true" ]]; then
-        echo -e "${YELLOW}[DRY-RUN]${NC} $*"
-    else
-        echo -e "${GREEN}[RUNNING]${NC} $*"
-        eval "$@"
-    fi
-}
-
-# Step 1: Copy configuration
-echo -e "${GREEN}Step 1: Copying configuration to homelab...${NC}"
-run_cmd "ssh ${HOMELAB_USER}@${HOMELAB_IP} 'mkdir -p /tmp/nixos-config'"
-run_cmd "rsync -avz --delete --exclude '.jj' $CONFIG_DIR/ ${HOMELAB_USER}@${HOMELAB_IP}:/tmp/nixos-config/"
-
-# Step 2: Deploy and rebuild
-echo -e "${GREEN}Step 2: Deploying configuration and rebuilding system...${NC}"
-run_cmd "ssh -t ${HOMELAB_USER}@${HOMELAB_IP} 'sudo mkdir -p /etc/nixos && sudo rsync -av --delete /tmp/nixos-config/ /etc/nixos/ && sudo nixos-rebuild switch --flake /etc/nixos#homelab --accept-flake-config'"
-
-if [[ "$DRY_RUN" == "false" ]]; then
-    echo ""
-    echo -e "${GREEN}=== Deployment Complete! ===${NC}"
-    echo ""
+# Find nixos-rebuild (system or via nix run)
+if command -v nixos-rebuild &>/dev/null; then
+    REBUILD_CMD=(nixos-rebuild)
 else
-    echo ""
-    echo -e "${YELLOW}Dry run complete. No changes were made.${NC}"
+    REBUILD_CMD=(nix run nixpkgs#nixos-rebuild --)
 fi
+
+CMD=(
+    "${REBUILD_CMD[@]}"
+    "$ACTION"
+    --flake ".#${HOST}"
+    --target-host "$TARGET_DEST"
+    --build-host "$TARGET_DEST"
+    --use-remote-sudo
+    --accept-flake-config
+    "${EXTRA_ARGS[@]}"
+)
+
+if [[ "$DRY_RUN" == "true" ]]; then
+    echo -e "${YELLOW}[DRY-RUN] Would execute:${NC}"
+    echo "  ${CMD[*]}"
+    exit 0
+fi
+
+echo -e "${GREEN}[DEPLOYING] Executing native remote deployment...${NC}"
+"${CMD[@]}"
+
+echo ""
+echo -e "${GREEN}=== Deployment to ${HOST} Complete! ===${NC}"

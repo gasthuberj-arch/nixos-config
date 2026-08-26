@@ -94,8 +94,8 @@ in {
         server = {
           http_addr = "127.0.0.1";
           http_port = cfg.port;
-          domain = "grafana.${config.services.caddy-custom.domain}";
-          root_url = "https://grafana.${config.services.caddy-custom.domain}";
+          domain = "${cfg.subdomain}.${config.homelab.services.caddy.domain}";
+          root_url = "https://${cfg.subdomain}.${config.homelab.services.caddy.domain}";
         };
 
         analytics = {

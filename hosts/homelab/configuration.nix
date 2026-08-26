@@ -71,10 +71,10 @@
   services.zfs.autoScrub.interval = "monthly";
   services.zfs.trim.enable = true;
 
-  # Add neededForBoot flag to /persist for impermanence
-  fileSystems."/persist" = {
-    neededForBoot = true;
-  };
+  # Add neededForBoot flag for impermanence filesystems
+  fileSystems."/persist".neededForBoot = true;
+  fileSystems."/var/lib".neededForBoot = true;
+  fileSystems."/home".neededForBoot = true;
 
   # Add nofail option to SATA pool mounts to prevent boot blocking
   fileSystems."/media" = {
@@ -387,8 +387,11 @@
     tailscale
   ];
 
-  # Enable flakes
-  nix.settings.experimental-features = ["nix-command" "flakes"];
+  # Nix configuration
+  nix.settings = {
+    experimental-features = ["nix-command" "flakes"];
+    accept-flake-config = true;
+  };
 
   # Automatic garbage collection
   nix.gc = {

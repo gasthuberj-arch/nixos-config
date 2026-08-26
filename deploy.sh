@@ -107,7 +107,7 @@ run_cmd "rsync -avz --delete --exclude '.jj' $CONFIG_DIR/ ${HOMELAB_USER}@${HOME
 
 # Step 2: Deploy and rebuild
 echo -e "${GREEN}Step 2: Deploying configuration and rebuilding system...${NC}"
-run_cmd "ssh -t ${HOMELAB_USER}@${HOMELAB_IP} 'sudo mkdir -p /etc/nixos && sudo rsync -av --delete /tmp/nixos-config/ /etc/nixos/ && sudo nixos-rebuild switch --flake /etc/nixos#homelab'"
+run_cmd "ssh -t ${HOMELAB_USER}@${HOMELAB_IP} 'sudo mkdir -p /etc/nixos && sudo rsync -av --delete /tmp/nixos-config/ /etc/nixos/ && sudo nixos-rebuild switch --flake /etc/nixos#homelab --accept-flake-config'"
 
 if [[ "$DRY_RUN" == "false" ]]; then
     echo ""

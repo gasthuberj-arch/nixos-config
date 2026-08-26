@@ -5,7 +5,7 @@
   ...
 }:
 with lib; let
-  cfg = config.services.gaming;
+  cfg = config.homelab.services.gaming;
   user = cfg.user;
 
   # Helper to reduce repetition for emulator options
@@ -18,7 +18,7 @@ with lib; let
     };
   };
 in {
-  options.services.gaming = {
+  options.homelab.services.gaming = {
     enable = mkEnableOption "gaming services and emulators";
 
     user = mkOption {

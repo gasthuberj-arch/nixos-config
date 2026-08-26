@@ -5,15 +5,22 @@
   ...
 }:
 with lib; let
-  cfg = config.services.paperless-custom;
+  cfg = config.homelab.services.paperless;
+  caddyCfg = config.homelab.services.caddy;
 in {
-  options.services.paperless-custom = {
+  options.homelab.services.paperless = {
     enable = mkEnableOption "Paperless-ngx document management service";
 
     port = mkOption {
       type = types.port;
       default = 28981;
       description = "Port for Paperless-ngx web interface";
+    };
+
+    subdomain = mkOption {
+      type = types.str;
+      default = "paperless";
+      description = "Subdomain prefix for Caddy reverse proxy";
     };
 
     dataDir = mkOption {
@@ -49,25 +56,21 @@ in {
       mediaDir = cfg.mediaDir;
       consumptionDir = cfg.consumeDir;
 
-      # Admin password - set via passwordFile or use default
       passwordFile =
         if cfg.passwordFile != null
         then cfg.passwordFile
         else null;
 
-      # Paperless settings
       settings = {
         PAPERLESS_OCR_LANGUAGE = "eng+deu";
         PAPERLESS_TIME_ZONE = "Europe/Berlin";
         PAPERLESS_CONSUMER_RECURSIVE = true;
         PAPERLESS_CONSUMER_SUBDIRS_AS_TAGS = true;
-        # Allow access from reverse proxy
-        PAPERLESS_ALLOWED_HOSTS = "localhost,127.0.0.1,paperless.homelab.lan";
-        # Trust proxy headers
+        PAPERLESS_ALLOWED_HOSTS = "localhost,127.0.0.1,${cfg.subdomain}.${caddyCfg.domain}";
         PAPERLESS_USE_X_FORWARD_HOST = true;
         PAPERLESS_USE_X_FORWARD_PORT = true;
-        PAPERLESS_CSRF_TRUSTED_ORIGINS = "https://paperless.homelab.lan";
-        PAPERLESS_URL = "https://paperless.homelab.lan";
+        PAPERLESS_CSRF_TRUSTED_ORIGINS = "https://${cfg.subdomain}.${caddyCfg.domain}";
+        PAPERLESS_URL = "https://${cfg.subdomain}.${caddyCfg.domain}";
         PAPERLESS_USE_X_FORWARDED_HOST = true;
         PAPERLESS_USE_X_FORWARDED_PORT = true;
       };
@@ -102,6 +105,14 @@ in {
         Type = "oneshot";
         RemainAfterExit = true;
       };
+    };
+
+    # Self-register in Caddy reverse proxy
+    services.caddy.virtualHosts."${cfg.subdomain}.${caddyCfg.domain}" = mkIf caddyCfg.enable {
+      extraConfig = ''
+        tls internal
+        reverse_proxy localhost:${toString cfg.port}
+      '';
     };
   };
 }

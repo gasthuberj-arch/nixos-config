@@ -5,9 +5,9 @@
   ...
 }:
 with lib; let
-  cfg = config.services.nextcloud-custom;
+  cfg = config.homelab.services.nextcloud;
 in {
-  options.services.nextcloud-custom = {
+  options.homelab.services.nextcloud = {
     enable = mkEnableOption "Nextcloud self-hosted cloud service";
 
     hostName = mkOption {
@@ -145,6 +145,19 @@ in {
         after = ["nextcloud-fix-permissions.service"];
         preStart = ''
           ${pkgs.systemd}/bin/systemd-tmpfiles --create --prefix=${cfg.dataDir}/config
+        '';
+      };
+
+      # Self-register in Caddy reverse proxy
+      services.caddy.virtualHosts."${cfg.hostName}" = mkIf config.homelab.services.caddy.enable {
+        extraConfig = ''
+          tls internal
+          reverse_proxy localhost:8080 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+          }
         '';
       };
     })

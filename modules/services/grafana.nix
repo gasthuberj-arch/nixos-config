@@ -6,15 +6,21 @@
   ...
 }:
 with lib; let
-  cfg = config.services.grafana-custom;
+  cfg = config.homelab.services.grafana;
 in {
-  options.services.grafana-custom = {
+  options.homelab.services.grafana = {
     enable = mkEnableOption "Grafana monitoring stack with Prometheus and Loki";
 
     port = mkOption {
       type = types.port;
       default = 3000;
       description = "Port for Grafana web interface";
+    };
+
+    subdomain = mkOption {
+      type = types.str;
+      default = "grafana";
+      description = "Subdomain prefix for Caddy reverse proxy";
     };
 
     dataDir = mkOption {
@@ -103,22 +109,23 @@ in {
         };
 
         # OIDC authentication via Authelia
-        "auth.generic_oauth" = mkIf config.services.authelia-custom.enable {
+        "auth.generic_oauth" = mkIf (config.homelab.services.authelia.enable or false) {
           enabled = true;
           name = "Authelia";
+          allow_sign_up = true;
+          auto_login = false;
           client_id = "grafana";
           client_secret = "$__file{/persist/secrets/grafana/oidc-client-secret}";
           scopes = "openid profile email groups";
-          auth_url = "https://auth.${config.services.caddy-custom.domain}/api/oidc/authorization";
-          token_url = "http://127.0.0.1:${toString config.services.authelia-custom.port}/api/oidc/token";
-          api_url = "http://127.0.0.1:${toString config.services.authelia-custom.port}/api/oidc/userinfo";
+          auth_url = "https://auth.homelab.lan/api/oidc/authorization";
+          token_url = "http://127.0.0.1:${toString config.homelab.services.authelia.port}/api/oidc/token";
+          api_url = "http://127.0.0.1:${toString config.homelab.services.authelia.port}/api/oidc/userinfo";
           login_attribute_path = "email";
           groups_attribute_path = "groups";
           name_attribute_path = "name";
           email_attribute_path = "email";
           use_pkce = true;
           role_attribute_path = "contains(groups[*], 'admins') && 'Admin' || 'Viewer'";
-          allow_sign_up = true;
           skip_org_role_sync = false;
           use_refresh_token = true;
         };
@@ -379,7 +386,7 @@ in {
     ];
 
     # Create Grafana secrets if they don't exist
-    systemd.services.grafana-generate-secrets = mkIf config.services.authelia-custom.enable {
+    systemd.services.grafana-generate-secrets = mkIf (config.homelab.services.authelia.enable or false) {
       description = "Generate Grafana secrets if they don't exist";
       wantedBy = ["multi-user.target"];
       before = ["grafana.service"];
@@ -408,6 +415,14 @@ in {
         Type = "oneshot";
         RemainAfterExit = true;
       };
+    };
+
+    # Self-register in Caddy reverse proxy
+    services.caddy.virtualHosts."${cfg.subdomain}.${config.homelab.services.caddy.domain}" = mkIf config.homelab.services.caddy.enable {
+      extraConfig = ''
+        tls internal
+        reverse_proxy localhost:${toString cfg.port}
+      '';
     };
 
     # System packages for debugging

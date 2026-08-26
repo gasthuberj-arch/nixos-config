@@ -6,15 +6,22 @@
   ...
 }:
 with lib; let
-  cfg = config.services.homeassistant-custom;
+  cfg = config.homelab.services.homeassistant;
+  caddyCfg = config.homelab.services.caddy;
 in {
-  options.services.homeassistant-custom = {
+  options.homelab.services.homeassistant = {
     enable = mkEnableOption "Home Assistant home automation service";
 
     port = mkOption {
       type = types.port;
       default = 8123;
       description = "Port for Home Assistant web interface";
+    };
+
+    subdomain = mkOption {
+      type = types.str;
+      default = "homeassistant";
+      description = "Subdomain prefix for Caddy reverse proxy";
     };
 
     dataDir = mkOption {
@@ -33,8 +40,6 @@ in {
   config = mkIf cfg.enable {
     services.home-assistant = {
       enable = true;
-
-      # Use unstable version for latest features and integrations
       package = pkgs-unstable.home-assistant;
 
       extraComponents = [
@@ -58,7 +63,6 @@ in {
       ];
 
       config = {
-        # Basic configuration
         default_config = {};
 
         http = {
@@ -68,15 +72,20 @@ in {
           use_x_forwarded_for = true;
         };
 
-        # Enable the frontend
         frontend = {};
-
-        # Enable the config panel
         config = {};
       };
     };
 
     # Open firewall if requested
     networking.firewall.allowedTCPPorts = mkIf cfg.openFirewall [cfg.port];
+
+    # Self-register in Caddy reverse proxy
+    services.caddy.virtualHosts."${cfg.subdomain}.${caddyCfg.domain}" = mkIf caddyCfg.enable {
+      extraConfig = ''
+        tls internal
+        reverse_proxy localhost:${toString cfg.port}
+      '';
+    };
   };
 }

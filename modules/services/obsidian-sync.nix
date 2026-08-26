@@ -5,15 +5,22 @@
   ...
 }:
 with lib; let
-  cfg = config.services.obsidian-sync-custom;
+  cfg = config.homelab.services.obsidian-sync;
+  caddyCfg = config.homelab.services.caddy;
 in {
-  options.services.obsidian-sync-custom = {
+  options.homelab.services.obsidian-sync = {
     enable = mkEnableOption "Obsidian LiveSync Server (CouchDB)";
 
     port = mkOption {
       type = types.port;
       default = 5984;
       description = "Port for the CouchDB sync server";
+    };
+
+    subdomain = mkOption {
+      type = types.str;
+      default = "obsidian";
+      description = "Subdomain prefix for Caddy reverse proxy";
     };
 
     dataDir = mkOption {
@@ -30,11 +37,9 @@ in {
       bindAddress = "127.0.0.1";
       databaseDir = cfg.dataDir;
 
-      # FIXED: Now using an Attribute Set instead of a String
       extraConfig = {
         httpd = {
           enable_cors = "true";
-          # Increase max request size for large attachments (e.g. 4GB)
           max_http_request_size = "4294967296";
         };
 
@@ -44,7 +49,6 @@ in {
         };
 
         cors = {
-          # Allow Obsidian Desktop and Mobile (Capacitor) to connect
           origins = "app://obsidian.md,capacitor://localhost,http://localhost";
           credentials = "true";
           headers = "accept, authorization, content-type, origin, referer";
@@ -74,13 +78,22 @@ in {
         Group = "couchdb";
       };
       script = ''
-        # Wait for CouchDB to warm up
         while ! ${pkgs.curl}/bin/curl -s http://127.0.0.1:${toString cfg.port}/_up > /dev/null; do
           sleep 2
         done
 
-        # Create the 'obsidian' database if it doesn't exist.
         ${pkgs.curl}/bin/curl -X PUT http://127.0.0.1:${toString cfg.port}/obsidian || true
+      '';
+    };
+
+    # Self-register in Caddy reverse proxy
+    services.caddy.virtualHosts."${cfg.subdomain}.${caddyCfg.domain}" = mkIf caddyCfg.enable {
+      extraConfig = ''
+        tls internal
+        reverse_proxy localhost:${toString cfg.port} {
+          header_up Host {host}
+          header_up X-Forwarded-Proto {scheme}
+        }
       '';
     };
   };

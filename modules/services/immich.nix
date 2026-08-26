@@ -6,15 +6,22 @@
   ...
 }:
 with lib; let
-  cfg = config.services.immich-custom;
+  cfg = config.homelab.services.immich;
+  caddyCfg = config.homelab.services.caddy;
 in {
-  options.services.immich-custom = {
+  options.homelab.services.immich = {
     enable = mkEnableOption "Immich photo management service";
 
     port = mkOption {
       type = types.port;
       default = 2283;
       description = "Port for Immich web interface";
+    };
+
+    subdomain = mkOption {
+      type = types.str;
+      default = "immich";
+      description = "Subdomain prefix for Caddy reverse proxy";
     };
 
     mediaLocation = mkOption {
@@ -34,25 +41,18 @@ in {
     services.immich = {
       enable = true;
       port = cfg.port;
-
-      # Use unstable version for latest features
       package = pkgs-unstable.immich;
-
-      # Media storage location
       mediaLocation = cfg.mediaLocation;
 
-      # Database configuration
       database = {
         enable = true;
         createDB = true;
       };
 
-      # Redis configuration
       redis = {
         enable = true;
       };
 
-      # Machine learning configuration
       machine-learning = {
         enable = true;
       };
@@ -63,5 +63,13 @@ in {
       "d ${cfg.mediaLocation} 0750 immich immich -"
       "d ${cfg.uploadLocation} 0750 immich immich -"
     ];
+
+    # Self-register in Caddy reverse proxy
+    services.caddy.virtualHosts."${cfg.subdomain}.${caddyCfg.domain}" = mkIf caddyCfg.enable {
+      extraConfig = ''
+        tls internal
+        reverse_proxy localhost:${toString cfg.port}
+      '';
+    };
   };
 }

@@ -5,9 +5,9 @@
   ...
 }:
 with lib; let
-  cfg = config.services.hdd-spindown;
+  cfg = config.homelab.services.hdd-spindown;
 in {
-  options.services.hdd-spindown = {
+  options.homelab.services.hdd-spindown = {
     enable = mkEnableOption "Automatic HDD standby spindown";
 
     devices = mkOption {

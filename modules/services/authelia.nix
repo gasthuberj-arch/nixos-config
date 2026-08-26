@@ -5,7 +5,7 @@
   ...
 }:
 with lib; let
-  cfg = config.services.authelia-custom;
+  cfg = config.homelab.services.authelia;
 
   # Default users file with argon2id hashed password for "changeme"
   defaultUsersFile = pkgs.writeText "authelia-users.yml" ''
@@ -18,12 +18,12 @@ with lib; let
           - admins
   '';
 in {
-  options.services.authelia-custom = {
+  options.homelab.services.authelia = {
     enable = mkEnableOption "Authelia SSO service";
 
     domain = mkOption {
       type = types.str;
-      default = config.services.caddy-custom.domain;
+      default = config.homelab.services.caddy.domain;
       description = "Base domain for Authelia";
     };
 
@@ -362,8 +362,15 @@ in {
     # Ensure directories exist
     systemd.tmpfiles.rules = [
       "d /var/lib/authelia-main 0700 authelia-main authelia-main -"
-      "d /persist/secrets/authelia 0700 authelia-main authelia-main -"
     ];
+
+    # Self-register in Caddy reverse proxy
+    services.caddy.virtualHosts."auth.${cfg.domain}" = mkIf config.homelab.services.caddy.enable {
+      extraConfig = ''
+        tls internal
+        reverse_proxy 127.0.0.1:${toString cfg.port}
+      '';
+    };
 
     # Make authelia available in system packages for password hashing
     environment.systemPackages = [pkgs.authelia];

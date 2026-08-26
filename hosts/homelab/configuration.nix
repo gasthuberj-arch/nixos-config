@@ -255,107 +255,108 @@
   networking.firewall.enable = true;
   networking.firewall.allowedTCPPorts = [22]; # Additional ports opened by services
 
-  # Caddy reverse proxy
-  services.caddy-custom = {
-    enable = true;
-    domain = "homelab.lan";
-    # email = "your-email@example.com"; # Uncomment for Let's Encrypt certs
-  };
-
-  # Authelia SSO
-  services.authelia-custom = {
-    enable = true;
-    domain = "homelab.lan";
-  };
-
-  # Immich photo management
-  services.immich-custom = {
-    enable = true;
-    port = 2283;
-    mediaLocation = "/pictures/immich";
-  };
-
-  # Paperless-ngx document management
-  services.paperless-custom = {
-    enable = true;
-    port = 28981;
-    # dataDir defaults to /var/lib/paperless (will be persisted)
-  };
-
-  # Nextcloud self-hosted cloud
-  services.nextcloud-custom = {
-    enable = true;
-    hostName = "nextcloud.homelab.lan";
-    maxUploadSize = "16G";
-    # dataDir defaults to /var/lib/nextcloud (will be persisted)
-  };
-
-  services.obsidian-sync-custom = {
-    enable = true;
-    port = 5984;
-  };
-
-  # Automatic HDD Spindown for SATA RAIDZ1 cold storage
-  services.hdd-spindown = {
-    enable = true;
-    devices = config.zfs-root.sataDevices;
-    spindownTimeout = 180; # 15 minutes
-  };
-
-  # Home Assistant home automation
-  services.homeassistant-custom = {
-    enable = true;
-    port = 8123;
-    # dataDir defaults to /var/lib/hass (will be persisted)
-  };
-
-  # Grafana monitoring stack
-  services.grafana-custom = {
-    enable = true;
-    port = 3000;
-
-    # Prometheus metrics collection
-    prometheus = {
+  # Homelab Services
+  homelab.services = {
+    # Caddy reverse proxy engine
+    caddy = {
       enable = true;
-      port = 9090;
-      retentionTime = "365d"; # Keep metrics for 1 year
+      domain = "homelab.lan";
+      # email = "your-email@example.com";
     };
 
-    # Loki log aggregation
-    loki = {
+    # Authelia SSO
+    authelia = {
       enable = true;
-      port = 3100;
+      domain = "homelab.lan";
     };
 
-    # Exporters for system monitoring
-    exporters = {
-      node = true; # System metrics (CPU, memory, disk, etc.)
-      systemd = true; # Systemd service metrics
-      zfs = true; # ZFS pool metrics
-    };
-  };
-
-  # Gaming services and emulators
-  services.gaming = {
-    enable = true;
-
-    # Sunshine game streaming
-    sunshine = {
+    # Immich photo management
+    immich = {
       enable = true;
-      openFirewall = true;
+      port = 2283;
+      mediaLocation = "/pictures/immich";
     };
 
-    # Emulators
-    emulators = {
+    # Paperless-ngx document management
+    paperless = {
       enable = true;
-      retroarch = true; # Multi-system emulator
-      dolphin = true; # GameCube/Wii
-      pcsx2 = true; # PlayStation 2
-      rpcs3 = true; # PlayStation 3
-      duckstation = false; # PlayStation 1 (disabled by default due to non-commercial license)
-      cemu = true; # Wii U
-      ryubing = true; # Nintendo Switch
-      ppsspp = true; # PSP
+      port = 28981;
+    };
+
+    # Nextcloud self-hosted cloud
+    nextcloud = {
+      enable = true;
+      hostName = "nextcloud.homelab.lan";
+      maxUploadSize = "16G";
+    };
+
+    # Obsidian LiveSync
+    obsidian-sync = {
+      enable = true;
+      port = 5984;
+    };
+
+    # Automatic HDD Spindown for SATA RAIDZ1 cold storage
+    hdd-spindown = {
+      enable = true;
+      devices = config.zfs-root.sataDevices;
+      spindownTimeout = 180; # 15 minutes
+    };
+
+    # Home Assistant home automation
+    homeassistant = {
+      enable = true;
+      port = 8123;
+    };
+
+    # Grafana monitoring stack
+    grafana = {
+      enable = true;
+      port = 3000;
+
+      # Prometheus metrics collection
+      prometheus = {
+        enable = true;
+        port = 9090;
+        retentionTime = "365d"; # Keep metrics for 1 year
+      };
+
+      # Loki log aggregation
+      loki = {
+        enable = true;
+        port = 3100;
+      };
+
+      # Exporters for system monitoring
+      exporters = {
+        node = true; # System metrics (CPU, memory, disk, etc.)
+        systemd = true; # Systemd service metrics
+        zfs = true; # ZFS pool metrics
+      };
+    };
+
+    # Gaming services and emulators
+    gaming = {
+      enable = true;
+
+      # Sunshine game streaming
+      sunshine = {
+        enable = true;
+        openFirewall = true;
+      };
+
+      # Emulators
+      emulators = {
+        enable = true;
+        retroarch = true; # Multi-system emulator
+        dolphin = true; # GameCube/Wii
+        pcsx2 = true; # PlayStation 2
+        rpcs3 = true; # PlayStation 3
+        duckstation = false; # PlayStation 1
+        cemu = true; # Wii U
+        ryubing = true; # Nintendo Switch
+        ppsspp = true; # PSP
+      };
     };
   };
 

@@ -5,43 +5,43 @@
   ...
 }:
 with lib; let
-  cfg = config.services.caddy-custom;
+  cfg = config.homelab.services.caddy;
 
   myServices = [
     {
       name = "Immich";
       subdomain = "immich";
-      enable = config.services.immich-custom.enable;
+      enable = config.homelab.services.immich.enable or false;
     }
     {
       name = "Authelia";
       subdomain = "auth";
-      enable = config.services.authelia-custom.enable;
+      enable = config.homelab.services.authelia.enable or false;
     }
     {
       name = "Paperless";
       subdomain = "paperless";
-      enable = config.services.paperless-custom.enable;
+      enable = config.homelab.services.paperless.enable or false;
     }
     {
       name = "Nextcloud";
       subdomain = "nextcloud";
-      enable = config.services.nextcloud-custom.enable;
+      enable = config.homelab.services.nextcloud.enable or false;
     }
     {
       name = "Home Assistant";
       subdomain = "homeassistant";
-      enable = config.services.homeassistant-custom.enable;
+      enable = config.homelab.services.homeassistant.enable or false;
     }
     {
       name = "Grafana";
       subdomain = "grafana";
-      enable = config.services.grafana-custom.enable;
+      enable = config.homelab.services.grafana.enable or false;
     }
     {
       name = "Obsidian Sync";
       subdomain = "obsidian";
-      enable = config.services.obsidian-sync-custom.enable;
+      enable = config.homelab.services.obsidian-sync.enable or false;
     }
   ];
 
@@ -117,13 +117,13 @@ with lib; let
     </html>
   '';
 in {
-  options.services.caddy-custom = {
-    enable = mkEnableOption "Caddy reverse proxy";
+  options.homelab.services.caddy = {
+    enable = mkEnableOption "Caddy reverse proxy and webserver engine";
 
     domain = mkOption {
       type = types.str;
       default = "homelab.lan";
-      description = "Base domain for services";
+      description = "Base domain for homelab services";
     };
 
     email = mkOption {
@@ -159,12 +159,8 @@ in {
         ''}
       '';
 
-      # Virtual hosts configuration
-      # Note: Using 'tls internal' requires trusting Caddy's internal CA certificate
-      # To test with curl: curl -k https://homelab.lan (accepts self-signed certs)
-      # Or export the CA cert from /var/lib/caddy/data/caddy/pki/authorities/local/root.crt
       virtualHosts = {
-        # Test endpoint to validate Caddy is working (accessible via domain)
+        # Landing page dashboard
         "${cfg.domain}" = {
           extraConfig = ''
             tls internal
@@ -173,7 +169,6 @@ in {
           '';
         };
 
-        # IP-based Access - Serves the same Dashboard
         "https://:443" = {
           extraConfig = ''
             tls internal
@@ -184,73 +179,8 @@ in {
 
         "http://:80" = {
           extraConfig = ''
-            # Optional: Redirect to HTTPS, or serve dashboard over HTTP
             root * ${dashboardPkg}
             file_server
-          '';
-        };
-
-        # Immich (if enabled) - accessible via domain
-        "immich.${cfg.domain}" = mkIf config.services.immich-custom.enable {
-          extraConfig = ''
-            tls internal
-            reverse_proxy localhost:${toString config.services.immich-custom.port}
-          '';
-        };
-
-        "auth.${cfg.domain}" = mkIf config.services.authelia-custom.enable {
-          extraConfig = ''
-            tls internal
-            reverse_proxy 127.0.0.1:${toString config.services.authelia-custom.port}
-          '';
-        };
-
-        # Paperless-ngx (if enabled) - accessible via domain
-        "paperless.${cfg.domain}" = mkIf config.services.paperless-custom.enable {
-          extraConfig = ''
-            tls internal
-            reverse_proxy localhost:${toString config.services.paperless-custom.port}
-          '';
-        };
-
-        # Nextcloud (if enabled) - accessible via domain
-        "nextcloud.${cfg.domain}" = mkIf config.services.nextcloud-custom.enable {
-          extraConfig = ''
-            tls internal
-            reverse_proxy localhost:8080 {
-              header_up Host {host}
-              header_up X-Real-IP {remote_host}
-              header_up X-Forwarded-For {remote_host}
-              header_up X-Forwarded-Proto {scheme}
-            }
-          '';
-        };
-
-        # Home Assistant (if enabled) - accessible via domain
-        "homeassistant.${cfg.domain}" = mkIf config.services.homeassistant-custom.enable {
-          extraConfig = ''
-            tls internal
-            reverse_proxy localhost:${toString config.services.homeassistant-custom.port}
-          '';
-        };
-
-        # Grafana (if enabled) - accessible via domain
-        # Note: Grafana uses native OIDC integration when Authelia is enabled
-        # No forward auth needed as Grafana handles OIDC directly
-        "grafana.${cfg.domain}" = mkIf config.services.grafana-custom.enable {
-          extraConfig = ''
-            tls internal
-            reverse_proxy localhost:${toString config.services.grafana-custom.port}
-          '';
-        };
-
-        "obsidian.${cfg.domain}" = mkIf config.services.obsidian-sync-custom.enable {
-          extraConfig = ''
-            tls internal
-            reverse_proxy localhost:${toString config.services.obsidian-sync-custom.port} {
-              header_up Host {host}
-              header_up X-Forwarded-Proto {scheme}
-            }
           '';
         };
       };

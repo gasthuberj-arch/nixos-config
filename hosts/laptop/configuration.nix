@@ -39,8 +39,12 @@
   # Binary compatibility for prebuilt binaries (e.g. agy, VS Code remote, language servers)
   programs.nix-ld.enable = true;
 
-  # Bootloader: systemd-boot for UEFI with LUKS prompt
+  # Bootloader: systemd-boot with portable fallback executable
   boot.loader.systemd-boot.enable = true;
+  boot.loader.systemd-boot.extraInstallCommands = ''
+    ${pkgs.coreutils}/bin/mkdir -p /boot/EFI/BOOT
+    ${pkgs.coreutils}/bin/cp -f /boot/EFI/systemd/systemd-bootx64.efi /boot/EFI/BOOT/BOOTX64.EFI || true
+  '';
   boot.loader.efi.canTouchEfiVariables = true;
 
   # System fonts

@@ -151,6 +151,13 @@
         rounding = 8;
       };
 
+      misc = {
+        disable_hyprland_logo = true;
+        disable_splash_rendering = true;
+        force_default_wallpaper = 0;
+        background_color = "0x11111b"; # Clean dark slate background
+      };
+
       bind = [
         # Terminal, Menu & Clipboard
         "$mod, RETURN, exec, $terminal"

@@ -43,13 +43,18 @@ nix run github:nix-community/disko -- \
 
 echo -e "\n${BLUE}[2/4] Installing NixOS System Closure...${NC}"
 nix shell nixpkgs#nixos-install-tools nixpkgs#util-linux nixpkgs#systemd --command \
-  nixos-install --flake .#laptop --no-root-password
+  nixos-install --flake .#laptop --no-root-password --no-bootloader
 
-echo -e "\n${BLUE}[3/4] Activating Bootloader & UEFI Fallback Entry...${NC}"
+echo -e "\n${BLUE}[3/4] Installing systemd-boot & Kernel Entries...${NC}"
+# 1. Install systemd-boot directly to ESP
+nix shell nixpkgs#systemd --command \
+  bootctl --esp-path=/mnt/boot install --no-variables
+
+# 2. Populate kernel, initrd, and generation-1 entries via switch-to-configuration
 nix shell nixpkgs#nixos-install-tools nixpkgs#util-linux nixpkgs#systemd --command \
-  nixos-enter --root /mnt -c '/nix/var/nix/profiles/system/bin/switch-to-configuration boot'
+  nixos-enter --root /mnt -c '/nix/var/nix/profiles/system/bin/switch-to-configuration boot' || true
 
-# Ensure fallback EFI exists unconditionally
+# 3. Ensure fallback EFI binary exists unconditionally
 mkdir -p /mnt/boot/EFI/BOOT
 if [ -f /mnt/boot/EFI/systemd/systemd-bootx64.efi ]; then
   cp -f /mnt/boot/EFI/systemd/systemd-bootx64.efi /mnt/boot/EFI/BOOT/BOOTX64.EFI

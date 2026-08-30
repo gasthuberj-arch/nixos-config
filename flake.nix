@@ -38,6 +38,11 @@
       url = "github:cachix/git-hooks.nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    jetpack-nixos = {
+      url = "github:anduril/jetpack-nixos";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = {
@@ -48,6 +53,7 @@
     disko,
     sops-nix,
     git-hooks,
+    jetpack-nixos,
     ...
   } @ inputs: let
     system = "x86_64-linux";
@@ -173,12 +179,24 @@
           }
         ];
       };
+
+      orin-nx = nixpkgs.lib.nixosSystem {
+        system = "aarch64-linux";
+        specialArgs = {
+          inherit inputs pkgs-unstable;
+        };
+        modules = [
+          jetpack-nixos.nixosModules.default
+          ./hosts/orin-nx/configuration.nix
+        ];
+      };
     };
     formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.alejandra;
     # Package outputs
     packages.x86_64-linux = {
       iso = self.nixosConfigurations.homelab-installer.config.system.build.isoImage;
       rpi5-sd-image = self.nixosConfigurations.rpi5.config.system.build.sdImage;
+      orin-nx-flash = self.nixosConfigurations.orin-nx.config.system.build.flashScript;
       antigravity = pkgs.callPackage ./pkgs/antigravity.nix {};
       agy = self.packages.x86_64-linux.antigravity;
     };

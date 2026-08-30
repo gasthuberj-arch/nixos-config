@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Ensure Nix binary is in PATH under sudo
+export PATH="/nix/var/nix/profiles/default/bin:/root/.nix-profile/bin:$PATH"
+if [ -n "${SUDO_USER:-}" ]; then
+  SUDO_HOME=$(eval echo "~$SUDO_USER")
+  export PATH="$SUDO_HOME/.nix-profile/bin:$PATH"
+fi
+
 # ANSI color codes
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'

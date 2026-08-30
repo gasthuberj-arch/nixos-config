@@ -28,6 +28,11 @@
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    home-manager = {
+      url = "github:nix-community/home-manager/release-25.11";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = {
@@ -114,6 +119,24 @@
         specialArgs = inputs // {inherit nixos-raspberrypi;};
         modules = [
           ./hosts/rpi5/configuration.nix
+        ];
+      };
+
+      laptop = nixpkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs = {
+          inherit inputs pkgs-unstable;
+        };
+        modules = [
+          disko.nixosModules.disko
+          sops-nix.nixosModules.sops
+          ./hosts/laptop/configuration.nix
+          inputs.home-manager.nixosModules.home-manager
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.users.johannes = import ./hosts/laptop/home.nix;
+          }
         ];
       };
     };

@@ -11,6 +11,10 @@
 
   networking.hostName = "rpi5";
   networking.networkmanager.enable = true;
+  networking.firewall.trustedInterfaces = ["tailscale0"];
+
+  # Mesh VPN
+  services.tailscale.enable = true;
 
   hardware.enableRedistributableFirmware = true;
 

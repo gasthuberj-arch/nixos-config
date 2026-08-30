@@ -13,7 +13,7 @@ fi
 DEFAULT_IP=""
 case "$HOST" in
   homelab) DEFAULT_IP="192.168.1.101" ;;
-  rpi5)    DEFAULT_IP="rpi5.lan" ;;
+  rpi5)    DEFAULT_IP="192.168.1.128" ;;
   orin)    DEFAULT_IP="orin.lan" ;;
   *)       DEFAULT_IP="${HOST}.lan" ;;
 esac

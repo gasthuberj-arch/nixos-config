@@ -1,4 +1,4 @@
-{pkgs, ...}: {
+_: {
   home.username = "johannes";
   home.homeDirectory = "/home/johannes";
   home.stateVersion = "25.11";
@@ -22,8 +22,6 @@
 
   programs.git = {
     enable = true;
-    userName = "Johannes";
-    userEmail = "johannes@laptop";
   };
 
   # Hyprland config (minimal working baseline with Super key bindings)

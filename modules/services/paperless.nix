@@ -1,7 +1,6 @@
 {
   config,
   lib,
-  pkgs,
   ...
 }:
 with lib; let
@@ -51,9 +50,9 @@ in {
   config = mkIf cfg.enable {
     services.paperless = {
       enable = true;
-      port = cfg.port;
-      dataDir = cfg.dataDir;
-      mediaDir = cfg.mediaDir;
+      inherit (cfg) port;
+      inherit (cfg) dataDir;
+      inherit (cfg) mediaDir;
       consumptionDir = cfg.consumeDir;
 
       passwordFile =

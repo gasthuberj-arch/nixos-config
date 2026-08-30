@@ -1,8 +1,4 @@
-{
-  pkgs,
-  lib,
-  ...
-}: {
+{pkgs, ...}: {
   # Nix & Flake settings
   nix = {
     settings = {
@@ -19,6 +15,9 @@
 
   # Allow unfree packages
   nixpkgs.config.allowUnfree = true;
+
+  # ZFS root import behavior
+  boot.zfs.forceImportRoot = false;
 
   # Time and Locale settings
   time.timeZone = "Europe/Berlin";

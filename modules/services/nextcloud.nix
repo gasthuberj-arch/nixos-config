@@ -46,14 +46,14 @@ in {
       services.nextcloud = {
         enable = true;
         package = pkgs.nextcloud32;
-        hostName = cfg.hostName;
+        inherit (cfg) hostName;
         datadir = cfg.dataDir;
 
         # HTTPS configuration - will be handled by Caddy reverse proxy
         https = true;
 
         # Max upload size
-        maxUploadSize = cfg.maxUploadSize;
+        inherit (cfg) maxUploadSize;
 
         # Database configuration - use PostgreSQL
         database.createLocally = true;

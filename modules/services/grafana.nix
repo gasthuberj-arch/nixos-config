@@ -165,8 +165,7 @@ in {
     # Prometheus
     services.prometheus = mkIf cfg.prometheus.enable {
       enable = true;
-      port = cfg.prometheus.port;
-      retentionTime = cfg.prometheus.retentionTime;
+      inherit (cfg.prometheus) port retentionTime;
 
       globalConfig = {
         scrape_interval = "15s";

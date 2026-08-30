@@ -33,7 +33,7 @@ in {
   config = mkIf cfg.enable {
     services.couchdb = {
       enable = true;
-      port = cfg.port;
+      inherit (cfg) port;
       bindAddress = "127.0.0.1";
       databaseDir = cfg.dataDir;
 

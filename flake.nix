@@ -33,6 +33,11 @@
       url = "github:nix-community/home-manager/release-25.11";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    git-hooks = {
+      url = "github:cachix/git-hooks.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = {
@@ -41,8 +46,8 @@
     nixpkgs-unstable,
     nixos-raspberrypi,
     disko,
-    impermanence,
     sops-nix,
+    git-hooks,
     ...
   } @ inputs: let
     system = "x86_64-linux";
@@ -64,6 +69,30 @@
       };
     };
   in {
+    # Pre-commit & CI quality checks
+    checks.${system} = {
+      pre-commit-check = git-hooks.lib.${system}.run {
+        src = ./.;
+        hooks = {
+          alejandra.enable = true;
+          deadnix.enable = true;
+          statix.enable = true;
+          gitleaks = {
+            enable = true;
+            name = "gitleaks";
+            entry = "${pkgs.gitleaks}/bin/gitleaks protect --staged --verbose";
+            pass_filenames = false;
+          };
+        };
+      };
+    };
+
+    # Development shell with automated git hooks
+    devShells.${system}.default = pkgs.mkShell {
+      inherit (self.checks.${system}.pre-commit-check) shellHook;
+      buildInputs = self.checks.${system}.pre-commit-check.enabledPackages;
+    };
+
     # NixOS configurations
     nixosConfigurations = {
       # Homelab server with two-tier ZFS storage
@@ -97,6 +126,8 @@
           disko.nixosModules.disko
 
           {
+            boot.zfs.forceImportRoot = false;
+
             # Pre-configure the installer with your settings
             environment.systemPackages = with pkgs; [
               git

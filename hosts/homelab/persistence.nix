@@ -1,4 +1,4 @@
-{...}: {
+_: {
   # Impermanence - centralized state persistence for homelab
   environment.persistence."/persist" = {
     hideMounts = true;

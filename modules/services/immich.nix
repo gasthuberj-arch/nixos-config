@@ -1,7 +1,6 @@
 {
   config,
   lib,
-  pkgs,
   pkgs-unstable,
   ...
 }:
@@ -40,9 +39,8 @@ in {
   config = mkIf cfg.enable {
     services.immich = {
       enable = true;
-      port = cfg.port;
+      inherit (cfg) port mediaLocation;
       package = pkgs-unstable.immich;
-      mediaLocation = cfg.mediaLocation;
 
       database = {
         enable = true;

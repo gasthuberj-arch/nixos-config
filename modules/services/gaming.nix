@@ -6,7 +6,6 @@
 }:
 with lib; let
   cfg = config.homelab.services.gaming;
-  user = cfg.user;
 
   # Helper to reduce repetition for emulator options
   mkEmulator = name: desc: {

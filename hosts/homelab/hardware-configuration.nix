@@ -4,7 +4,6 @@
 {
   config,
   lib,
-  pkgs,
   modulesPath,
   ...
 }: {
@@ -12,14 +11,18 @@
     (modulesPath + "/installer/scan/not-detected.nix")
   ];
 
-  boot.initrd.availableKernelModules = ["xhci_pci" "ahci" "nvme" "usbhid" "usb_storage" "sd_mod"];
-  boot.initrd.kernelModules = [];
-  boot.kernelModules = ["kvm-amd"];
-  boot.extraModulePackages = [];
+  boot = {
+    initrd = {
+      availableKernelModules = ["xhci_pci" "ahci" "nvme" "usbhid" "usb_storage" "sd_mod"];
+      kernelModules = [];
+    };
+    kernelModules = ["kvm-amd"];
+    extraModulePackages = [];
 
-  # ZFS support
-  boot.supportedFilesystems = ["zfs"];
-  boot.zfs.forceImportRoot = false;
+    # ZFS support
+    supportedFilesystems = ["zfs"];
+    zfs.forceImportRoot = false;
+  };
   networking.hostId = "8425e349"; # Required for ZFS - random 8 hex digits
 
   # Filesystems are managed by disko

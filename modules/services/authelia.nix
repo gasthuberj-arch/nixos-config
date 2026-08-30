@@ -127,7 +127,7 @@ in {
           name = "authelia_session";
           cookies = [
             {
-              domain = cfg.domain;
+              inherit (cfg) domain;
               authelia_url = "https://auth.${cfg.domain}";
               same_site = "lax";
             }
@@ -293,9 +293,7 @@ in {
       };
 
       secrets = {
-        jwtSecretFile = cfg.secrets.jwtSecretFile;
-        storageEncryptionKeyFile = cfg.secrets.storageEncryptionKeyFile;
-        sessionSecretFile = cfg.secrets.sessionSecretFile;
+        inherit (cfg.secrets) jwtSecretFile storageEncryptionKeyFile sessionSecretFile;
         oidcHmacSecretFile = mkIf cfg.oidc.enable cfg.secrets.oidcHmacSecretFile;
         oidcIssuerPrivateKeyFile = mkIf cfg.oidc.enable cfg.secrets.oidcIssuerPrivateKeyFile;
       };

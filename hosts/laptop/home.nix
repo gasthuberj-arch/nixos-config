@@ -1,7 +1,68 @@
-_: {
+{
+  pkgs,
+  self,
+  ...
+}: {
   home.username = "johannes";
   home.homeDirectory = "/home/johannes";
   home.stateVersion = "25.11";
+
+  # User packages
+  home.packages = with pkgs; [
+    # AI & Agent Tooling
+    self.packages.${pkgs.stdenv.hostPlatform.system}.antigravity
+
+    # Modern CLI toolkit
+    ripgrep
+    fd
+    fzf
+    bat
+    btop
+    eza
+    lazygit
+    gh
+    jq
+    yq
+    zoxide
+    devenv
+    unzip
+    zip
+    tree
+    fastfetch
+    wget
+    curl
+    rsync
+    which
+
+    # DevOps & Kubernetes tools
+    kubectl
+    kubernetes-helm
+    k9s
+    stern
+    kubectx
+
+    # GUI Applications & Browsers
+    firefox
+    google-chrome
+    vscode
+
+    # Neovim & backing build tools for treesitter / LSP
+    neovim
+    gcc
+    gnumake
+    nodejs
+    python3
+    tree-sitter
+
+    # Desktop / Hyprland utilities
+    cliphist
+    wl-clipboard
+    grim
+    slurp
+    pavucontrol
+    brightnessctl
+    libnotify
+  ];
 
   # Shell configuration
   programs.zsh = {
@@ -10,10 +71,35 @@ _: {
     autosuggestion.enable = true;
     syntaxHighlighting.enable = true;
     shellAliases = {
-      ll = "ls -lah";
+      ll = "eza -lah --icons";
+      ls = "eza --icons";
       rebuild = "sudo nixos-rebuild switch --flake /home/johannes/code/nixos-config#laptop";
+      lg = "lazygit";
+      k = "kubectl";
     };
+    initContent = ''
+      export PATH="$HOME/.local/bin:$PATH"
+    '';
   };
+
+  # CLI helpers
+  programs.zoxide = {
+    enable = true;
+    enableZshIntegration = true;
+  };
+
+  programs.direnv = {
+    enable = true;
+    enableZshIntegration = true;
+    nix-direnv.enable = true;
+  };
+
+  programs.fzf = {
+    enable = true;
+    enableZshIntegration = true;
+  };
+
+  programs.bat.enable = true;
 
   programs.starship = {
     enable = true;
@@ -24,7 +110,7 @@ _: {
     enable = true;
   };
 
-  # Hyprland config (minimal working baseline with Super key bindings)
+  # Hyprland config (ergonomic baseline with Vim navigation & Fn keys)
   wayland.windowManager.hyprland = {
     enable = true;
     settings = {
@@ -36,6 +122,8 @@ _: {
         "waybar"
         "dunst"
         "nm-applet --indicator"
+        "wl-paste --type text --watch cliphist store"
+        "wl-paste --type image --watch cliphist store"
       ];
 
       monitor = [
@@ -46,6 +134,7 @@ _: {
         kb_layout = "us";
         touchpad = {
           natural_scroll = true;
+          tap-to-click = true;
         };
       };
 
@@ -63,18 +152,42 @@ _: {
       };
 
       bind = [
+        # Terminal, Menu & Clipboard
         "$mod, RETURN, exec, $terminal"
-        "$mod, Q, killactive,"
-        "$mod, M, exit,"
-        "$mod, V, togglefloating,"
         "$mod, SPACE, exec, $menu"
-        "$mod, F, fullscreen,"
+        "$mod, V, exec, cliphist list | wofi -d | cliphist decode | wl-copy"
 
-        # Move focus with mod + arrow keys
+        # Window Actions
+        "$mod, Q, killactive,"
+        "$mod, F, fullscreen, 0"
+        "$mod SHIFT, SPACE, togglefloating,"
+        "$mod, M, exit,"
+
+        # Screen Lock & Screenshots
+        "$mod, L, exec, hyprlock"
+        "$mod SHIFT, S, exec, grim -g \"$(slurp)\" - | wl-copy && notify-send 'Screenshot copied to clipboard'"
+        ", Print, exec, grim -g \"$(slurp)\" - | wl-copy && notify-send 'Screenshot copied to clipboard'"
+        "SHIFT, Print, exec, grim - | wl-copy && notify-send 'Full screenshot copied to clipboard'"
+
+        # Focus Navigation (Vim HJKL + Arrow keys)
         "$mod, left, movefocus, l"
         "$mod, right, movefocus, r"
         "$mod, up, movefocus, u"
         "$mod, down, movefocus, d"
+        "$mod, H, movefocus, l"
+        "$mod, J, movefocus, d"
+        "$mod, K, movefocus, u"
+        "$mod, L, movefocus, r"
+
+        # Window Movement (Swap with neighbor)
+        "$mod SHIFT, left, movewindow, l"
+        "$mod SHIFT, right, movewindow, r"
+        "$mod SHIFT, up, movewindow, u"
+        "$mod SHIFT, down, movewindow, d"
+        "$mod SHIFT, H, movewindow, l"
+        "$mod SHIFT, J, movewindow, d"
+        "$mod SHIFT, K, movewindow, u"
+        "$mod SHIFT, L, movewindow, r"
 
         # Switch workspaces with mod + [0-9]
         "$mod, 1, workspace, 1"
@@ -99,6 +212,21 @@ _: {
         "$mod SHIFT, 9, movetoworkspace, 9"
       ];
 
+      bindel = [
+        # Volume controls
+        ", XF86AudioRaiseVolume, exec, wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 5%+"
+        ", XF86AudioLowerVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
+        # Brightness controls
+        ", XF86MonBrightnessUp, exec, brightnessctl set 5%+"
+        ", XF86MonBrightnessDown, exec, brightnessctl set 5%-"
+      ];
+
+      bindl = [
+        # Audio Mute toggles
+        ", XF86AudioMute, exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
+        ", XF86AudioMicMute, exec, wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"
+      ];
+
       bindm = [
         # Mouse movements
         "$mod, mouse:272, movewindow"
@@ -111,7 +239,7 @@ _: {
   programs.kitty = {
     enable = true;
     settings = {
-      font_family = "monospace";
+      font_family = "JetBrainsMono Nerd Font";
       font_size = "11.0";
       enable_audio_bell = false;
       background_opacity = "0.95";

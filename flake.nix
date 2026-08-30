@@ -156,7 +156,7 @@
       laptop = nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs = {
-          inherit inputs pkgs-unstable;
+          inherit inputs pkgs-unstable self;
         };
         modules = [
           disko.nixosModules.disko
@@ -166,16 +166,21 @@
           {
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
+            home-manager.extraSpecialArgs = {
+              inherit self inputs pkgs-unstable;
+            };
             home-manager.users.johannes = import ./hosts/laptop/home.nix;
           }
         ];
       };
     };
     formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.alejandra;
-    # ISO image output
+    # Package outputs
     packages.x86_64-linux = {
       iso = self.nixosConfigurations.homelab-installer.config.system.build.isoImage;
       rpi5-sd-image = self.nixosConfigurations.rpi5.config.system.build.sdImage;
+      antigravity = pkgs.callPackage ./pkgs/antigravity.nix {};
+      agy = self.packages.x86_64-linux.antigravity;
     };
   };
 }

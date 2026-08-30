@@ -125,6 +125,10 @@ do_full() {
   fi
 
   echo -e "\n${BLUE}[1/4] Partitioning & Formatting via Disko...${NC}"
+  # Clean any active mounts or open dm-crypt containers before wiping
+  umount -R /mnt 2>/dev/null || true
+  cryptsetup close crypted 2>/dev/null || true
+
   nix run github:nix-community/disko -- \
     --mode zap_create_mount \
     ./hosts/laptop/disko-config.nix \

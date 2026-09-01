@@ -14,6 +14,8 @@
   networking.hostName = "laptop";
   networking.networkmanager.enable = true;
 
+  boot.kernelParams = [ "amd_pstate=active" ];
+
   # Hardware & Firmware support for modern notebooks
   hardware.enableRedistributableFirmware = true;
   hardware.graphics = {
@@ -25,6 +27,10 @@
     powerOnBoot = true;
   };
   services.blueman.enable = true;
+
+  services.intune.enable = true;
+  services.gnome.gnome-keyring.enable = true;
+  security.pam.services.login.enableGnomeKeyring = true;
 
   # Container Runtime (Docker daemon for standard dev & test workflows)
   virtualisation.docker = {

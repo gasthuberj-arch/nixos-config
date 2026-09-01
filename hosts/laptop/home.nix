@@ -1,5 +1,6 @@
 {
   pkgs,
+  lib,
   self,
   ...
 }: {
@@ -33,6 +34,7 @@
     curl
     rsync
     which
+    zellij
 
     # DevOps & Kubernetes tools
     kubectl
@@ -45,6 +47,7 @@
     firefox
     google-chrome
     vscode
+    protonvpn-gui
 
     # Neovim & backing build tools for treesitter / LSP
     neovim
@@ -62,6 +65,15 @@
     pavucontrol
     brightnessctl
     libnotify
+
+    # work
+    microsoft-edge
+    claude-code
+    pnpm
+    uv
+    jdk17
+    mkcert
+    lastpass-cli
   ];
 
   # Shell configuration
@@ -79,6 +91,7 @@
     };
     initContent = ''
       export PATH="$HOME/.local/bin:$PATH"
+      [ -f "$HOME/.env.local" ] && source "$HOME/.env.local"
     '';
   };
 
@@ -99,6 +112,16 @@
     enableZshIntegration = true;
   };
 
+  programs.atuin = {
+    enable = true;
+    enableZshIntegration = true;
+    settings = {
+      filter_mode = "global";
+      filter_mode_shell_up_arrow = "directory";
+      search_mode = "fuzzy";
+    };
+  };
+
   programs.bat.enable = true;
 
   programs.starship = {
@@ -108,7 +131,25 @@
 
   programs.git = {
     enable = true;
+    userName = "Johannes Gasthuber";
+    userEmail = "johannes.gasthuber@manex.ai";
+    signing = {
+      key = "~/.ssh/id_ed25519.pub";
+      signByDefault = true;
+    };
+    extraConfig = {
+      gpg = {
+        format = "ssh";
+        ssh.allowedSignersFile = "~/.ssh/allowed_signers";
+      };
+    };
   };
+
+  home.activation.createGitAllowedSigners = lib.hm.dag.entryAfter ["writeBoundary"] ''
+    if [ -f "$HOME/.ssh/id_ed25519.pub" ]; then
+      echo "$(git config --global user.email) $(cat "$HOME/.ssh/id_ed25519.pub")" > "$HOME/.ssh/allowed_signers"
+    fi
+  '';
 
   # Hyprland config (ergonomic baseline with Vim navigation & Fn keys)
   wayland.windowManager.hyprland = {

@@ -10,7 +10,6 @@
 
   # Enable GNOME & GDM with autologin
   services.displayManager.gdm.enable = true;
-  services.displayManager.gdm.wayland = true;
   services.displayManager.autoLogin = {
     enable = true;
     user = "johannes";

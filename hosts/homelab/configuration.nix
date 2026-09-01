@@ -1,6 +1,7 @@
 {
   config,
   lib,
+  pkgs,
   inputs,
   ...
 }: {
@@ -61,9 +62,18 @@
   networking.hostId = "8425e349";
 
   # Rollback root filesystem on boot (impermanence)
-  boot.initrd.postDeviceCommands = lib.mkAfter ''
-    zfs rollback -r rpool/nixos/empty@start
-  '';
+  # postDeviceCommands is removed in 26.05 systemd initrd; use a service instead
+  boot.initrd.systemd.services.rollback = {
+    description = "Rollback root filesystem to blank snapshot";
+    wantedBy = ["initrd.target"];
+    after = ["zfs-import-rpool.service"];
+    before = ["sysroot.mount"];
+    unitConfig.DefaultDependencies = "no";
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.zfs}/bin/zfs rollback -r rpool/nixos/empty@start";
+    };
+  };
 
   services.zfs.autoScrub.enable = true;
   services.zfs.autoScrub.interval = "monthly";

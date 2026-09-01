@@ -106,6 +106,7 @@ in {
         security = {
           admin_user = "admin";
           admin_password = "$__file{/persist/secrets/grafana/admin-password}";
+          secret_key = "$__file{/persist/secrets/grafana/secret-key}";
         };
 
         # OIDC authentication via Authelia
@@ -313,68 +314,35 @@ in {
       };
     };
 
-    # Promtail log collector
-    services.promtail = mkIf cfg.loki.enable {
+    # Grafana Alloy log collector (replaces promtail, which reached end-of-life)
+    services.alloy = mkIf cfg.loki.enable {
       enable = true;
-      configuration = {
-        server = {
-          http_listen_port = 9080;
-          grpc_listen_port = 0;
-        };
-
-        positions = {
-          filename = "/var/lib/promtail/positions.yaml";
-        };
-
-        clients = [
-          {
-            url = "http://127.0.0.1:${toString cfg.loki.port}/loki/api/v1/push";
+      configPath = pkgs.writeText "alloy-config.alloy" ''
+        loki.write "loki" {
+          endpoint {
+            url = "http://127.0.0.1:${toString cfg.loki.port}/loki/api/v1/push"
           }
-        ];
+        }
 
-        scrape_configs = [
-          # System journal logs
-          {
-            job_name = "journal";
-            journal = {
-              max_age = "12h";
-              labels = {
-                job = "systemd-journal";
-                host = config.networking.hostName;
-              };
-            };
-            relabel_configs = [
-              {
-                source_labels = ["__journal__systemd_unit"];
-                target_label = "unit";
-              }
-              {
-                source_labels = ["__journal__hostname"];
-                target_label = "hostname";
-              }
-              {
-                source_labels = ["__journal_priority"];
-                target_label = "priority";
-              }
-            ];
-          }
+        loki.source.journal "journal" {
+          max_age    = "12h"
+          labels     = {job = "systemd-journal", host = "${config.networking.hostName}"}
+          forward_to = [loki.write.loki.receiver]
+        }
 
-          # Caddy logs
-          {
-            job_name = "caddy";
-            static_configs = [
-              {
-                targets = ["localhost"];
-                labels = {
-                  job = "caddy";
-                  host = config.networking.hostName;
-                  __path__ = "/var/log/caddy/*.log";
-                };
-              }
-            ];
-          }
-        ];
-      };
+        local.file_match "caddy" {
+          path_targets = [{
+            __path__ = "/var/log/caddy/*.log",
+            job      = "caddy",
+            host     = "${config.networking.hostName}",
+          }]
+        }
+
+        loki.source.file "caddy" {
+          targets    = local.file_match.caddy.targets
+          forward_to = [loki.write.loki.receiver]
+        }
+      '';
     };
 
     # Create directories for Grafana
@@ -385,7 +353,7 @@ in {
     ];
 
     # Create Grafana secrets if they don't exist
-    systemd.services.grafana-generate-secrets = mkIf (config.homelab.services.authelia.enable or false) {
+    systemd.services.grafana-generate-secrets = {
       description = "Generate Grafana secrets if they don't exist";
       wantedBy = ["multi-user.target"];
       before = ["grafana.service"];
@@ -401,7 +369,14 @@ in {
           chmod 600 "$SECRETS_DIR/admin-password"
         fi
 
-        # Generate OIDC client secret
+        # Generate secret_key — preserves the old Grafana default so existing
+        # encrypted DB values remain readable after the 26.05 upgrade.
+        if [ ! -f "$SECRETS_DIR/secret-key" ]; then
+          echo "SW2YcwTIb9zpOOhoPsMm" > "$SECRETS_DIR/secret-key"
+          chmod 600 "$SECRETS_DIR/secret-key"
+        fi
+
+        # Generate OIDC client secret (only used when Authelia is active)
         if [ ! -f "$SECRETS_DIR/oidc-client-secret" ]; then
           echo "insecure_secret" > "$SECRETS_DIR/oidc-client-secret"
           chmod 600 "$SECRETS_DIR/oidc-client-secret"

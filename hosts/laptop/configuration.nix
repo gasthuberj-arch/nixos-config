@@ -14,7 +14,7 @@
   networking.hostName = "laptop";
   networking.networkmanager.enable = true;
 
-  boot.kernelParams = [ "amd_pstate=active" ];
+  boot.kernelParams = ["amd_pstate=active"];
 
   # Hardware & Firmware support for modern notebooks
   hardware.enableRedistributableFirmware = true;

@@ -47,7 +47,7 @@
     firefox
     google-chrome
     vscode
-    protonvpn-gui
+    proton-vpn
 
     # Neovim & backing build tools for treesitter / LSP
     neovim
@@ -131,13 +131,15 @@
 
   programs.git = {
     enable = true;
-    userName = "Johannes Gasthuber";
-    userEmail = "johannes.gasthuber@manex.ai";
     signing = {
       key = "~/.ssh/id_ed25519.pub";
       signByDefault = true;
     };
-    extraConfig = {
+    settings = {
+      user = {
+        name = "Johannes Gasthuber";
+        email = "johannes.gasthuber@manex.ai";
+      };
       gpg = {
         format = "ssh";
         ssh.allowedSignersFile = "~/.ssh/allowed_signers";
@@ -154,6 +156,7 @@
   # Hyprland config (ergonomic baseline with Vim navigation & Fn keys)
   wayland.windowManager.hyprland = {
     enable = true;
+    configType = "hyprlang";
     settings = {
       "$mod" = "SUPER";
       "$terminal" = "kitty";

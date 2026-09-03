@@ -157,6 +157,9 @@
   wayland.windowManager.hyprland = {
     enable = true;
     configType = "hyprlang";
+    # UWSM (enabled via programs.hyprland.withUWSM) owns systemd session
+    # integration now; Home Manager's own integration would conflict with it.
+    systemd.enable = false;
     settings = {
       "$mod" = "SUPER";
       "$terminal" = "kitty";
@@ -200,6 +203,7 @@
         disable_splash_rendering = true;
         force_default_wallpaper = 0;
         background_color = "0x11111b"; # Clean dark slate background
+        disable_watchdog_warning = true;
       };
 
       bind = [
@@ -261,6 +265,14 @@
         "$mod SHIFT, 7, movetoworkspace, 7"
         "$mod SHIFT, 8, movetoworkspace, 8"
         "$mod SHIFT, 9, movetoworkspace, 9"
+      ];
+
+      binde = [
+        # Resize active window with mod + ctrl + arrows
+        "$mod CTRL, right, resizeactive, 20 0"
+        "$mod CTRL, left, resizeactive, -20 0"
+        "$mod CTRL, up, resizeactive, 0 -20"
+        "$mod CTRL, down, resizeactive, 0 20"
       ];
 
       bindel = [

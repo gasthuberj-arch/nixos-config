@@ -2,6 +2,7 @@
   programs.hyprland = {
     enable = true;
     xwayland.enable = true;
+    withUWSM = true;
   };
 
   # Wayland / desktop integration essentials

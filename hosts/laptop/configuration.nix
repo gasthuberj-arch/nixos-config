@@ -44,6 +44,9 @@
 
   # Binary compatibility for prebuilt binaries (e.g. agy, VS Code remote, language servers)
   programs.nix-ld.enable = true;
+  programs.nix-ld.libraries = with pkgs; [
+    libseccomp
+  ];
 
   # Bootloader: systemd-boot with portable fallback executable
   boot.loader.systemd-boot.enable = true;

@@ -74,6 +74,9 @@
     jdk17
     mkcert
     lastpass-cli
+    terraform
+    terragrunt
+    helmfile
   ];
 
   # Shell configuration

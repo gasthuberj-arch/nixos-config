@@ -8,6 +8,11 @@
   home.homeDirectory = "/home/johannes";
   home.stateVersion = "25.11";
 
+  # Plain `virsh`/`virt-manager` default to the unprivileged per-user
+  # "session" libvirt instance, which can't touch host networking (no
+  # bridges, no default NAT network). Pin the system instance instead.
+  home.sessionVariables.LIBVIRT_DEFAULT_URI = "qemu:///system";
+
   # User packages
   home.packages = with pkgs; [
     # AI & Agent Tooling
@@ -37,7 +42,6 @@
     zellij
 
     # DevOps & Kubernetes tools
-    kubectl
     kubernetes-helm
     k9s
     stern
@@ -77,6 +81,10 @@
     terraform
     terragrunt
     helmfile
+    k3d
+    jj
+    kubectl
+    awscli2
   ];
 
   # Shell configuration
@@ -111,6 +119,11 @@
   };
 
   programs.fzf = {
+    enable = true;
+    enableZshIntegration = true;
+  };
+
+  programs.mise = {
     enable = true;
     enableZshIntegration = true;
   };

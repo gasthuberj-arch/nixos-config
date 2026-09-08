@@ -32,6 +32,16 @@
   services.gnome.gnome-keyring.enable = true;
   security.pam.services.login.enableGnomeKeyring = true;
 
+  # k3s/Longhorn now live in libvirt VMs instead of bare metal — NixOS's
+  # non-FHS layout fights Longhorn's hardcoded /usr/bin path assumptions,
+  # and a real guest kernel avoids that class of problem entirely.
+  virtualisation.libvirtd.enable = true;
+  programs.virt-manager.enable = true;
+  environment.systemPackages = with pkgs; [
+    virt-viewer
+    cloud-utils
+  ];
+
   # Container Runtime (Docker daemon for standard dev & test workflows)
   virtualisation.docker = {
     enable = true;
@@ -68,7 +78,7 @@
 
   # User account configuration
   users.users.johannes = {
-    extraGroups = ["networkmanager" "wheel" "video" "render" "input" "docker"];
+    extraGroups = ["networkmanager" "wheel" "video" "render" "input" "docker" "libvirtd"];
     shell = pkgs.zsh;
   };
 

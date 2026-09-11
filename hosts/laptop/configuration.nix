@@ -13,6 +13,11 @@
 
   networking.hostName = "laptop";
   networking.networkmanager.enable = true;
+  networking.networkmanager.dns = "dnsmasq"; # NM runs its own local dnsmasq resolver
+
+  environment.etc."NetworkManager/dnsmasq.d/qualitatio-wildcard.conf".text = ''
+    address=/qualitatio.test/192.168.122.141
+  '';
 
   boot.kernelParams = ["amd_pstate=active"];
 
@@ -27,6 +32,10 @@
     powerOnBoot = true;
   };
   services.blueman.enable = true;
+
+  # Trash/mount/network-share backend Thunar needs for real copy-paste
+  # (without it, cut/paste and the trash can silently no-op).
+  services.gvfs.enable = true;
 
   services.intune.enable = true;
   services.gnome.gnome-keyring.enable = true;

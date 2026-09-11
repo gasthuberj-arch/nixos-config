@@ -1,4 +1,5 @@
 {
+  config,
   pkgs,
   lib,
   self,
@@ -48,7 +49,6 @@
     kubectx
 
     # GUI Applications & Browsers
-    firefox
     google-chrome
     vscode
     proton-vpn
@@ -70,6 +70,13 @@
     brightnessctl
     libnotify
 
+    # File managers: Thunar (GUI, drag-drop/right-click copy-paste) + Yazi
+    # (TUI, kitty-graphics-protocol previews)
+    xfce.thunar
+    xfce.thunar-volman
+    tumbler
+    yazi
+
     # work
     microsoft-edge
     claude-code
@@ -85,6 +92,8 @@
     jj
     kubectl
     awscli2
+    openssl
+    kustomize
   ];
 
   # Shell configuration
@@ -139,6 +148,27 @@
   };
 
   programs.bat.enable = true;
+
+  # Office web apps (PowerPoint/Word Online) intercept Ctrl+V via the
+  # async Clipboard API, which Firefox blocks by default for JS-triggered
+  # paste. Without these prefs, copy-paste into PowerPoint Online silently
+  # does nothing on Firefox even though the Wayland clipboard itself works.
+  programs.firefox = {
+    enable = true;
+    # Firefox's own default profile dir on Linux ($XDG_CONFIG_HOME) and the
+    # existing real profile (2hefm63c.default) it must be pointed at — get
+    # either wrong and Home Manager creates a fresh, empty default profile
+    # instead of managing the one with actual history/logins/sessions.
+    configPath = "${config.xdg.configHome}/mozilla/firefox";
+    profiles.johannes = {
+      path = "2hefm63c.default";
+      isDefault = true;
+      settings = {
+        "dom.events.asyncClipboard.clipboardItem" = true;
+        "dom.events.testing.asyncClipboard.enabled" = true;
+      };
+    };
+  };
 
   programs.starship = {
     enable = true;
@@ -227,6 +257,10 @@
         "$mod, RETURN, exec, $terminal"
         "$mod, SPACE, exec, $menu"
         "$mod, V, exec, cliphist list | wofi -d | cliphist decode | wl-copy"
+
+        # File Managers
+        "$mod, E, exec, thunar"
+        "$mod, Y, exec, $terminal -e yazi"
 
         # Window Actions
         "$mod, Q, killactive,"

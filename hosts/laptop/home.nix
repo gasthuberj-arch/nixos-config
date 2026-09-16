@@ -61,6 +61,12 @@
     python3
     tree-sitter
 
+    # Elixir / BEAM tooling
+    elixir
+    elixir-ls
+    inotify-tools # Phoenix live-reload file watching on Linux
+    postgresql # psql client for local Phoenix/Ecto database work
+
     # Desktop / Hyprland utilities
     cliphist
     wl-clipboard
@@ -112,6 +118,24 @@
     initContent = ''
       export PATH="$HOME/.local/bin:$PATH"
       [ -f "$HOME/.env.local" ] && source "$HOME/.env.local"
+
+      # Kill ambient AWS SSO session + kubectl context before/after high-trust agent work.
+      # Neither service has a single "log out of everything" - each credential path
+      # (aws cli, kubectl auth) is independent, so both need clearing explicitly.
+      lockdown() {
+        echo "→ aws sso logout"
+        aws sso logout
+        echo "→ clearing kubectl context (was: $(kubectl config current-context 2>/dev/null))"
+        kubectl config unset current-context
+        echo "✓ no ambient AWS/kube credentials"
+      }
+
+      # Launch Claude Code with zero MCP servers loaded - for autonomous/agentic runs
+      # where you don't want any MCP connector's own ambient access in scope.
+      claude-locked() {
+        lockdown
+        claude --strict-mcp-config "$@"
+      }
     '';
   };
 

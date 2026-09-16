@@ -104,10 +104,33 @@ in {
     };
   };
 
-  # Binary compatibility for prebuilt binaries (e.g. agy, VS Code remote, language servers)
+  # Binary compatibility for prebuilt binaries (e.g. agy, VS Code remote, language servers,
+  # Playwright's downloaded Chromium)
   programs.nix-ld.enable = true;
   programs.nix-ld.libraries = with pkgs; [
     libseccomp
+
+    # Playwright/Chromium runtime deps
+    glib
+    nss
+    nspr
+    at-spi2-atk
+    cups
+    dbus
+    expat
+    mesa
+    cairo
+    pango
+    xorg.libX11
+    xorg.libXcomposite
+    xorg.libXdamage
+    xorg.libXext
+    xorg.libXfixes
+    xorg.libXrandr
+    xorg.libxcb
+    libxkbcommon
+    alsa-lib
+    libgbm
   ];
 
   # Bootloader: systemd-boot with portable fallback executable

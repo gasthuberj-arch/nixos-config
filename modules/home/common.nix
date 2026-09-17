@@ -59,6 +59,11 @@
     vscode
     proton-vpn
 
+    # Spaced repetition, with AnkiConnect baked in (declaratively, via
+    # anki.withAddons) so external tools/scripts can add cards over its
+    # localhost:8765 HTTP API without a manual AnkiWeb addon install.
+    (anki.withAddons [ankiAddons.anki-connect])
+
     # Neovim & backing build tools for treesitter / LSP
     neovim
     gcc

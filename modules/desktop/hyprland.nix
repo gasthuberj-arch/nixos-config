@@ -18,6 +18,12 @@
     ];
   };
 
+  # dconf backs the GTK/libadwaita "prefer-dark" setting that
+  # xdg-desktop-portal-gtk exposes over the freedesktop Settings portal.
+  # Without the dconf daemon, `gsettings set` (used by theme-toggle) has
+  # nowhere to persist the value and silently fails.
+  programs.dconf.enable = true;
+
   # Pipewire audio
   services.pulseaudio.enable = false;
   security.rtkit.enable = true;
@@ -53,5 +59,6 @@
     hypridle
     grim
     slurp
+    glib # gsettings CLI, used by theme-toggle for the GTK dark/light portal setting
   ];
 }

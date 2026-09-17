@@ -142,9 +142,10 @@
         claude --strict-mcp-config --settings "$sandbox_settings" "$@"
       }
 
-      # Flip kitty between the day/night color scheme. Persists via a symlink
-      # (survives rebuilds/restarts) and, if a kitty socket is live, pushes
-      # the new colors into already-open windows/tabs immediately.
+      # Flip kitty, GTK apps, k9s and btop between a day and night theme.
+      # Only kitty (and GTK apps that watch the portal setting live, e.g.
+      # most GTK4/libadwaita apps) update immediately - k9s and btop read
+      # their theme choice once at startup, so they pick it up next launch.
       theme-toggle() {
         local kitty_dir="$HOME/.config/kitty"
         local current="$kitty_dir/current-theme.conf"
@@ -152,11 +153,28 @@
         if [ -L "$current" ] && [[ "$(readlink "$current")" == *night.conf ]]; then
           target="day"
         fi
+
         ln -sf "$kitty_dir/themes/$target.conf" "$current"
         if [ -n "$KITTY_LISTEN_ON" ]; then
           kitty @ set-colors --all --configured "$kitty_dir/themes/$target.conf"
         fi
-        echo "→ terminal theme: $target"
+
+        if command -v gsettings >/dev/null 2>&1; then
+          gsettings set org.gnome.desktop.interface color-scheme \
+            "$([ "$target" = night ] && echo prefer-dark || echo prefer-light)"
+        fi
+
+        if [ -f "$HOME/.config/k9s/config.yaml" ] && command -v yq >/dev/null 2>&1; then
+          yq -y -i ".k9s.ui.skin = \"$target\"" "$HOME/.config/k9s/config.yaml"
+        fi
+
+        if [ -f "$HOME/.config/btop/btop.conf" ]; then
+          local btop_theme="flexoki-dark"
+          [ "$target" = day ] && btop_theme="flexoki-light"
+          sed -i "s/^color_theme = .*/color_theme = \"$btop_theme\"/" "$HOME/.config/btop/btop.conf"
+        fi
+
+        echo "→ theme: $target (kitty + GTK apps live; k9s/btop apply next launch)"
       }
     '';
   };
@@ -468,6 +486,17 @@
       ln -sf "$HOME/.config/kitty/themes/night.conf" "$HOME/.config/kitty/current-theme.conf"
     fi
   '';
+
+  # k9s/btop day/night skins for theme-toggle, taken straight from what each
+  # package already ships rather than hand-rolled theme files. Neither app
+  # re-reads its config while running, so these only take effect on that
+  # app's next launch after theme-toggle runs - and only once the app has
+  # run at least once before (to have created its own config.yaml/btop.conf
+  # for theme-toggle to edit).
+  home.file.".config/k9s/skins/night.yaml".source = "${pkgs.k9s}/share/k9s/skins/gruvbox-dark.yaml";
+  home.file.".config/k9s/skins/day.yaml".source = "${pkgs.k9s}/share/k9s/skins/gruvbox-light.yaml";
+  home.file.".config/btop/themes/flexoki-dark.theme".source = "${pkgs.btop}/share/btop/themes/flexoki-dark.theme";
+  home.file.".config/btop/themes/flexoki-light.theme".source = "${pkgs.btop}/share/btop/themes/flexoki-light.theme";
 
   programs.home-manager.enable = true;
 }

@@ -130,11 +130,22 @@
         echo "✓ no ambient AWS/kube credentials"
       }
 
-      # Launch Claude Code with zero MCP servers loaded - for autonomous/agentic runs
-      # where you don't want any MCP connector's own ambient access in scope.
+      # Launch Claude Code with zero MCP servers loaded and OS-level sandboxing
+      # (bubblewrap on Linux) for autonomous/agentic runs. allowUnsandboxedCommands
+      # is off on purpose: a command that fails inside the sandbox should fail, not
+      # silently retry with full access - that would defeat the point of lockdown.
       claude-locked() {
         lockdown
-        claude --strict-mcp-config "$@"
+        local sandbox_settings='{
+          "sandbox": {
+            "enabled": true,
+            "allowUnsandboxedCommands": false,
+            "filesystem": {
+              "denyRead": ["~/.ssh", "~/.aws", "~/.kube", "~/.env.local"]
+            }
+          }
+        }'
+        claude --strict-mcp-config --settings "$sandbox_settings" "$@"
       }
     '';
   };

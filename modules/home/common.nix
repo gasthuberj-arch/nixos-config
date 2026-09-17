@@ -174,7 +174,14 @@
           sed -i "s/^color_theme = .*/color_theme = \"$btop_theme\"/" "$HOME/.config/btop/btop.conf"
         fi
 
-        echo "→ theme: $target (kitty + GTK apps live; k9s/btop apply next launch)"
+        if command -v bat >/dev/null 2>&1; then
+          mkdir -p "$HOME/.config/bat"
+          local bat_theme="Catppuccin Mocha"
+          [ "$target" = day ] && bat_theme="Catppuccin Latte"
+          printf -- '--theme="%s"\n' "$bat_theme" >"$HOME/.config/bat/config"
+        fi
+
+        echo "→ theme: $target (kitty, GTK apps, and bat live; k9s/btop apply next launch)"
       }
     '';
   };
@@ -484,6 +491,10 @@
   home.activation.seedTerminalTheme = lib.hm.dag.entryAfter ["writeBoundary"] ''
     if [ ! -e "$HOME/.config/kitty/current-theme.conf" ]; then
       ln -sf "$HOME/.config/kitty/themes/night.conf" "$HOME/.config/kitty/current-theme.conf"
+    fi
+    if [ ! -e "$HOME/.config/bat/config" ]; then
+      mkdir -p "$HOME/.config/bat"
+      printf -- '--theme="Catppuccin Mocha"\n' >"$HOME/.config/bat/config"
     fi
   '';
 

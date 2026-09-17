@@ -1,6 +1,7 @@
 {
   config,
   pkgs,
+  pkgs-unstable,
   lib,
   self,
   ...
@@ -85,7 +86,7 @@
 
     # work
     microsoft-edge
-    claude-code
+    pkgs-unstable.claude-code
     pnpm
     uv
     jdk17

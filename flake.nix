@@ -159,7 +159,7 @@
         ];
       };
 
-      laptop = nixpkgs.lib.nixosSystem {
+      work-laptop = nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs = {
           inherit inputs pkgs-unstable self;
@@ -167,7 +167,7 @@
         modules = [
           disko.nixosModules.disko
           sops-nix.nixosModules.sops
-          ./hosts/laptop/configuration.nix
+          ./hosts/work-laptop/configuration.nix
           inputs.home-manager.nixosModules.home-manager
           {
             home-manager.useGlobalPkgs = true;
@@ -175,7 +175,28 @@
             home-manager.extraSpecialArgs = {
               inherit self inputs pkgs-unstable;
             };
-            home-manager.users.johannes = import ./hosts/laptop/home.nix;
+            home-manager.users.johannes = import ./hosts/work-laptop/home.nix;
+          }
+        ];
+      };
+
+      personal-laptop = nixpkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs = {
+          inherit inputs pkgs-unstable self;
+        };
+        modules = [
+          disko.nixosModules.disko
+          sops-nix.nixosModules.sops
+          ./hosts/personal-laptop/configuration.nix
+          inputs.home-manager.nixosModules.home-manager
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.extraSpecialArgs = {
+              inherit self inputs pkgs-unstable;
+            };
+            home-manager.users.johannes = import ./hosts/personal-laptop/home.nix;
           }
         ];
       };

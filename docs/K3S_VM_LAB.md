@@ -31,7 +31,7 @@ into VMs: a real Ubuntu kernel and real disks make Longhorn behave like it does 
 every other distro it's actually tested against. **`services.k3s` and all the
 bare-metal Longhorn prereqs (`services.openiscsi`, `iscsi_tcp`/`dm_crypt` kernel
 modules, the `nfs-utils` package, the tmpfiles symlink) were removed from
-`hosts/laptop/configuration.nix`.**
+`hosts/work-laptop/configuration.nix`.**
 
 ## 2. Tool choice: quickemu → libvirt
 
@@ -51,7 +51,7 @@ requirement, because:
 `192.168.122.0/24` + built-in DHCP) gives every VM a real, mutually-reachable IP
 with zero manual bridge/dnsmasq plumbing. `virtualisation.libvirtd.enable = true`
 and `programs.virt-manager.enable = true` are now declared in
-`hosts/laptop/configuration.nix`; VMs themselves are still created imperatively
+`hosts/work-laptop/configuration.nix`; VMs themselves are still created imperatively
 via `virt-install` (that's normal for this stack — nobody declares individual
 libvirt domains in NixOS options).
 
@@ -188,9 +188,9 @@ done
 
 ## 6. Files changed
 
-- `hosts/laptop/configuration.nix` — removed `services.k3s` and bare-metal
+- `hosts/work-laptop/configuration.nix` — removed `services.k3s` and bare-metal
   Longhorn prereqs; added `virtualisation.libvirtd.enable`,
   `programs.virt-manager.enable`, `virt-viewer`/`cloud-utils` packages, `johannes`
   added to the `libvirtd` group.
-- `hosts/laptop/home.nix` — removed the stale `KUBECONFIG` pointing at the
+- `hosts/work-laptop/home.nix` — removed the stale `KUBECONFIG` pointing at the
   bare-metal cluster; added `LIBVIRT_DEFAULT_URI = "qemu:///system"`.

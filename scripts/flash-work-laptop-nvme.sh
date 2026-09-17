@@ -53,7 +53,7 @@ do_mount() {
   echo -e "${BLUE}⠋ Mounting subvolumes via Disko...${NC}"
   nix run github:nix-community/disko -- \
     --mode mount \
-    ./hosts/laptop/disko-config.nix \
+    ./hosts/work-laptop/disko-config.nix \
     --arg device "\"$dev\""
 
   echo -e "${GREEN}✓ Successfully mounted to /mnt:${NC}"
@@ -131,12 +131,12 @@ do_full() {
 
   nix run github:nix-community/disko -- \
     --mode zap_create_mount \
-    ./hosts/laptop/disko-config.nix \
+    ./hosts/work-laptop/disko-config.nix \
     --arg device "\"$dev\""
 
   echo -e "\n${BLUE}[2/4] Installing NixOS System Closure...${NC}"
   nix shell nixpkgs#nixos-install-tools nixpkgs#util-linux nixpkgs#systemd --command \
-    nixos-install --flake .#laptop --no-root-password --no-bootloader
+    nixos-install --flake .#work-laptop --no-root-password --no-bootloader
 
   echo -e "\n${BLUE}[3/4] Installing Bootloader & Kernel Entries...${NC}"
   do_bootloader

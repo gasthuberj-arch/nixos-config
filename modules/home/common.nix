@@ -6,10 +6,6 @@
   self,
   ...
 }: {
-  home.username = "johannes";
-  home.homeDirectory = "/home/johannes";
-  home.stateVersion = "25.11";
-
   # Plain `virsh`/`virt-manager` default to the unprivileged per-user
   # "session" libvirt instance, which can't touch host networking (no
   # bridges, no default NAT network). Pin the system instance instead.
@@ -19,6 +15,7 @@
   home.packages = with pkgs; [
     # AI & Agent Tooling
     self.packages.${pkgs.stdenv.hostPlatform.system}.antigravity
+    pkgs-unstable.claude-code
 
     # Modern CLI toolkit
     ripgrep
@@ -42,12 +39,20 @@
     rsync
     which
     zellij
+    jj
 
     # DevOps & Kubernetes tools
     kubernetes-helm
     k9s
     stern
     kubectx
+    kubectl
+    terraform
+    terragrunt
+    helmfile
+    k3d
+    kustomize
+    awscli2
 
     # GUI Applications & Browsers
     google-chrome
@@ -84,23 +89,12 @@
     tumbler
     yazi
 
-    # work
-    microsoft-edge
-    pkgs-unstable.claude-code
+    # General dev tooling
     pnpm
     uv
     jdk17
     mkcert
-    lastpass-cli
-    terraform
-    terragrunt
-    helmfile
-    k3d
-    jj
-    kubectl
-    awscli2
     openssl
-    kustomize
   ];
 
   # Shell configuration
@@ -112,7 +106,6 @@
     shellAliases = {
       ll = "eza -lah --icons";
       ls = "eza --icons";
-      rebuild = "sudo nixos-rebuild switch --flake /home/johannes/code/nixos-config#laptop";
       lg = "lazygit";
       k = "kubectl";
     };
@@ -147,6 +140,23 @@
           }
         }'
         claude --strict-mcp-config --settings "$sandbox_settings" "$@"
+      }
+
+      # Flip kitty between the day/night color scheme. Persists via a symlink
+      # (survives rebuilds/restarts) and, if a kitty socket is live, pushes
+      # the new colors into already-open windows/tabs immediately.
+      theme-toggle() {
+        local kitty_dir="$HOME/.config/kitty"
+        local current="$kitty_dir/current-theme.conf"
+        local target="night"
+        if [ -L "$current" ] && [[ "$(readlink "$current")" == *night.conf ]]; then
+          target="day"
+        fi
+        ln -sf "$kitty_dir/themes/$target.conf" "$current"
+        if [ -n "$KITTY_LISTEN_ON" ]; then
+          kitty @ set-colors --all --configured "$kitty_dir/themes/$target.conf"
+        fi
+        echo "→ terminal theme: $target"
       }
     '';
   };
@@ -210,30 +220,6 @@
     enable = true;
     enableZshIntegration = true;
   };
-
-  programs.git = {
-    enable = true;
-    signing = {
-      key = "~/.ssh/id_ed25519.pub";
-      signByDefault = true;
-    };
-    settings = {
-      user = {
-        name = "Johannes Gasthuber";
-        email = "johannes.gasthuber@manex.ai";
-      };
-      gpg = {
-        format = "ssh";
-        ssh.allowedSignersFile = "~/.ssh/allowed_signers";
-      };
-    };
-  };
-
-  home.activation.createGitAllowedSigners = lib.hm.dag.entryAfter ["writeBoundary"] ''
-    if [ -f "$HOME/.ssh/id_ed25519.pub" ]; then
-      echo "$(git config --global user.email) $(cat "$HOME/.ssh/id_ed25519.pub")" > "$HOME/.ssh/allowed_signers"
-    fi
-  '';
 
   # Hyprland config (ergonomic baseline with Vim navigation & Fn keys)
   wayland.windowManager.hyprland = {
@@ -392,8 +378,96 @@
       font_size = "11.0";
       enable_audio_bell = false;
       background_opacity = "0.95";
+      # Remote control (scoped to this user's kitty process via a per-pid
+      # socket) lets `theme-toggle` push new colors into already-open
+      # windows/tabs instead of requiring a restart.
+      allow_remote_control = "yes";
+      listen_on = "unix:/tmp/kitty-socket-{kitty_pid}";
     };
+    # current-theme.conf is a symlink toggled between themes/day.conf and
+    # themes/night.conf by the theme-toggle shell function below; it's seeded
+    # once (see home.activation.seedTerminalTheme) and left alone afterwards
+    # so a rebuild doesn't undo the last choice.
+    extraConfig = "include current-theme.conf";
   };
+
+  home.file.".config/kitty/themes/night.conf".text = ''
+    # Catppuccin Mocha
+    foreground            #CDD6F4
+    background            #1E1E2E
+    selection_foreground  #1E1E2E
+    selection_background  #F5E0DC
+    cursor                #F5E0DC
+    cursor_text_color     #1E1E2E
+    url_color             #F5E0DC
+    active_border_color   #B4BEFE
+    inactive_border_color #6C7086
+    active_tab_foreground   #11111B
+    active_tab_background   #CBA6F7
+    inactive_tab_foreground #CDD6F4
+    inactive_tab_background #181825
+    tab_bar_background      #11111B
+
+    color0  #45475A
+    color8  #585B70
+    color1  #F38BA8
+    color9  #F38BA8
+    color2  #A6E3A1
+    color10 #A6E3A1
+    color3  #F9E2AF
+    color11 #F9E2AF
+    color4  #89B4FA
+    color12 #89B4FA
+    color5  #F5C2E7
+    color13 #F5C2E7
+    color6  #94E2D5
+    color14 #94E2D5
+    color7  #BAC2DE
+    color15 #A6ADC8
+  '';
+
+  home.file.".config/kitty/themes/day.conf".text = ''
+    # Catppuccin Latte
+    foreground            #4C4F69
+    background            #EFF1F5
+    selection_foreground  #EFF1F5
+    selection_background  #DC8A78
+    cursor                #DC8A78
+    cursor_text_color     #EFF1F5
+    url_color             #DC8A78
+    active_border_color   #7287FD
+    inactive_border_color #9CA0B0
+    active_tab_foreground   #E6E9EF
+    active_tab_background   #8839EF
+    inactive_tab_foreground #4C4F69
+    inactive_tab_background #BCC0CC
+    tab_bar_background      #ACB0BE
+
+    color0  #5C5F77
+    color8  #6C6F85
+    color1  #D20F39
+    color9  #D20F39
+    color2  #40A02B
+    color10 #40A02B
+    color3  #DF8E1D
+    color11 #DF8E1D
+    color4  #1E66F5
+    color12 #1E66F5
+    color5  #EA76CB
+    color13 #EA76CB
+    color6  #179299
+    color14 #179299
+    color7  #ACB0BE
+    color15 #BCC0CC
+  '';
+
+  # Default to the night theme the first time this config is applied; leave
+  # it alone on later activations so theme-toggle's choice survives rebuilds.
+  home.activation.seedTerminalTheme = lib.hm.dag.entryAfter ["writeBoundary"] ''
+    if [ ! -e "$HOME/.config/kitty/current-theme.conf" ]; then
+      ln -sf "$HOME/.config/kitty/themes/night.conf" "$HOME/.config/kitty/current-theme.conf"
+    fi
+  '';
 
   programs.home-manager.enable = true;
 }

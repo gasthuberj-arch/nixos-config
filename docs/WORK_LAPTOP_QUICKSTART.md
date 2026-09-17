@@ -51,7 +51,7 @@ This document covers credentials, first-boot workflow, Hyprland desktop shortcut
      ```bash
      nixos-generate-config --show-hardware-config
      ```
-   - If any missing proprietary/vendor drivers are reported (e.g., specific WiFi/Bluetooth firmware), add them to [`hosts/laptop/hardware-configuration.nix`](file:///home/johannes/code/nixos-config/hosts/laptop/hardware-configuration.nix).
+   - If any missing proprietary/vendor drivers are reported (e.g., specific WiFi/Bluetooth firmware), add them to [`hosts/work-laptop/hardware-configuration.nix`](file:///home/johannes/code/nixos-config/hosts/work-laptop/hardware-configuration.nix).
 
 ---
 
@@ -147,11 +147,11 @@ After making edits to `/home/johannes/code/nixos-config/`:
 rebuild
 
 # Or standard NixOS command:
-sudo nixos-rebuild switch --flake /home/johannes/code/nixos-config#laptop
+sudo nixos-rebuild switch --flake /home/johannes/code/nixos-config#work-laptop
 ```
 
 ### Key Configuration Files
-- **System Services, Docker, Nix-LD, Fonts:** [`hosts/laptop/configuration.nix`](file:///home/johannes/code/nixos-config/hosts/laptop/configuration.nix)
-- **User Tools, Neovim, Hyprland Bindings:** [`hosts/laptop/home.nix`](file:///home/johannes/code/nixos-config/hosts/laptop/home.nix)
-- **Disk & Btrfs Subvolume Layout:** [`hosts/laptop/disko-config.nix`](file:///home/johannes/code/nixos-config/hosts/laptop/disko-config.nix)
-- **Hardware Drivers & Kernel Modules:** [`hosts/laptop/hardware-configuration.nix`](file:///home/johannes/code/nixos-config/hosts/laptop/hardware-configuration.nix)
+- **System Services, Docker, Nix-LD, Fonts:** [`hosts/work-laptop/configuration.nix`](file:///home/johannes/code/nixos-config/hosts/work-laptop/configuration.nix)
+- **User Tools, Neovim, Hyprland Bindings:** [`hosts/work-laptop/home.nix`](file:///home/johannes/code/nixos-config/hosts/work-laptop/home.nix)
+- **Disk & Btrfs Subvolume Layout:** [`hosts/work-laptop/disko-config.nix`](file:///home/johannes/code/nixos-config/hosts/work-laptop/disko-config.nix)
+- **Hardware Drivers & Kernel Modules:** [`hosts/work-laptop/hardware-configuration.nix`](file:///home/johannes/code/nixos-config/hosts/work-laptop/hardware-configuration.nix)

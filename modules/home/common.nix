@@ -5,7 +5,19 @@
   lib,
   self,
   ...
-}: {
+}: let
+  # kitty listens on one socket per process. theme-toggle globs these to
+  # repaint every running instance, so the path lives here rather than being
+  # written out twice and drifting apart.
+  kittySocketPrefix = "/tmp/kitty-socket-";
+
+  # Pointer cursor, day/night. Named here so the Nix side (home.pointerCursor)
+  # and the runtime side (hyprctl setcursor in theme-toggle) cannot disagree
+  # about the theme name or size.
+  cursorSize = 24;
+  cursorThemeNight = "catppuccin-mocha-dark-cursors";
+  cursorThemeDay = "catppuccin-latte-light-cursors";
+in {
   # Plain `virsh`/`virt-manager` default to the unprivileged per-user
   # "session" libvirt instance, which can't touch host networking (no
   # bridges, no default NAT network). Pin the system instance instead.
@@ -100,6 +112,11 @@
     jdk17
     mkcert
     openssl
+
+    # home.pointerCursor installs the Mocha (night) cursor as the seeded
+    # default; the Latte one is referenced only at runtime by theme-toggle,
+    # so without this it would never land on XCURSOR_PATH to switch to.
+    catppuccin-cursors.latteLight
   ];
 
   # Shell configuration
@@ -148,9 +165,12 @@
       }
 
       # Flip kitty, GTK apps, k9s and btop between a day and night theme.
-      # Only kitty (and GTK apps that watch the portal setting live, e.g.
-      # most GTK4/libadwaita apps) update immediately - k9s and btop read
-      # their theme choice once at startup, so they pick it up next launch.
+      # kitty remote control is per-process, so pushing colors to the socket
+      # in $KITTY_LISTEN_ON would only repaint the window theme-toggle was
+      # invoked from; walking every socket repaints all open instances.
+      # GTK apps watching the portal setting (most GTK4/libadwaita) and bat
+      # follow immediately - k9s and btop read their theme choice once at
+      # startup, so they pick it up next launch.
       theme-toggle() {
         local kitty_dir="$HOME/.config/kitty"
         local current="$kitty_dir/current-theme.conf"
@@ -159,14 +179,35 @@
           target="day"
         fi
 
+        local cursor_theme="${cursorThemeNight}"
+        [ "$target" = day ] && cursor_theme="${cursorThemeDay}"
+
         ln -sf "$kitty_dir/themes/$target.conf" "$current"
-        if [ -n "$KITTY_LISTEN_ON" ]; then
-          kitty @ set-colors --all --configured "$kitty_dir/themes/$target.conf"
+
+        # (N) is zsh's null_glob qualifier: with no kitty running, the pattern
+        # has to expand to nothing rather than raise "no matches found", which
+        # would abort the function before the GTK/k9s/btop/bat updates below.
+        # Sockets outlive kitty processes that died without cleaning up, so a
+        # dead one just fails its connect and is skipped.
+        local sock repainted=0
+        for sock in ${kittySocketPrefix}*(N); do
+          if kitty @ --to "unix:$sock" set-colors --all --configured \
+            "$kitty_dir/themes/$target.conf" >/dev/null 2>&1; then
+            repainted=$((repainted + 1))
+          fi
+        done
+
+        # Hyprland owns the pointer for the entire session, so one call covers
+        # every window. There is no per-process socket to walk as with kitty.
+        if command -v hyprctl >/dev/null 2>&1; then
+          hyprctl setcursor "$cursor_theme" ${toString cursorSize} >/dev/null 2>&1
         fi
 
+        # GTK apps ignore the compositor cursor and read this key instead.
         if command -v gsettings >/dev/null 2>&1; then
           gsettings set org.gnome.desktop.interface color-scheme \
             "$([ "$target" = night ] && echo prefer-dark || echo prefer-light)"
+          gsettings set org.gnome.desktop.interface cursor-theme "$cursor_theme"
         fi
 
         if [ -f "$HOME/.config/k9s/config.yaml" ] && command -v yq >/dev/null 2>&1; then
@@ -186,7 +227,7 @@
           printf -- '--theme="%s"\n' "$bat_theme" >"$HOME/.config/bat/config"
         fi
 
-        echo "→ theme: $target (kitty, GTK apps, and bat live; k9s/btop apply next launch)"
+        echo "→ theme: $target ($repainted kitty instance(s), GTK apps, cursor and bat live; k9s/btop apply next launch)"
       }
     '';
   };
@@ -408,11 +449,21 @@
       font_size = "11.0";
       enable_audio_bell = false;
       background_opacity = "0.95";
-      # Remote control (scoped to this user's kitty process via a per-pid
-      # socket) lets `theme-toggle` push new colors into already-open
-      # windows/tabs instead of requiring a restart.
-      allow_remote_control = "yes";
-      listen_on = "unix:/tmp/kitty-socket-{kitty_pid}";
+      # Remote control, scoped to this user via a per-pid socket, lets
+      # `theme-toggle` push new colors into already-open windows/tabs instead
+      # of requiring a restart. One socket per process is also what lets it
+      # reach every running kitty, not just the one it was invoked from.
+      #
+      # socket-only, not yes: kitty's remote control protocol is a DCS escape
+      # sequence, so `yes` also accepts commands written to the TTY itself.
+      # That turns any untrusted bytes reaching the terminal (a hostile log
+      # line, curl output, an SSH session to a compromised host) into local
+      # command execution via `kitty @ launch` and scrollback disclosure via
+      # `kitty @ get-text`. theme-toggle only ever talks to the socket below,
+      # which is already restricted to this uid by its 0755 mode, since
+      # connect(2) needs the write bit. Nothing here uses the TTY route.
+      allow_remote_control = "socket-only";
+      listen_on = "unix:${kittySocketPrefix}{kitty_pid}";
     };
     # current-theme.conf is a symlink toggled between themes/day.conf and
     # themes/night.conf by the theme-toggle shell function below; it's seeded
@@ -502,6 +553,17 @@
       printf -- '--theme="Catppuccin Mocha"\n' >"$HOME/.config/bat/config"
     fi
   '';
+
+  # Seeds the night cursor and wires up GTK, X11 and ~/.icons/default, which
+  # is what most toolkits actually read. theme-toggle overrides it at runtime;
+  # this is the value a fresh session starts from.
+  home.pointerCursor = {
+    package = pkgs.catppuccin-cursors.mochaDark;
+    name = cursorThemeNight;
+    size = cursorSize;
+    gtk.enable = true;
+    x11.enable = true;
+  };
 
   # k9s/btop day/night skins for theme-toggle, taken straight from what each
   # package already ships rather than hand-rolled theme files. Neither app

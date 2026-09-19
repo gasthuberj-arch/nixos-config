@@ -11,8 +11,8 @@
   networking.hostName = "personal-laptop";
   networking.networkmanager.enable = true;
 
-  # This machine's CPU vendor isn't known yet — if it turns out to be AMD,
-  # add `boot.kernelParams = ["amd_pstate=active"];` like work-laptop does.
+  # Hardware: Lenovo ThinkPad E15 Gen 2 (AMD Ryzen 7 4700U with Radeon Graphics)
+  boot.kernelParams = ["amd_pstate=active"];
 
   # Hardware & Firmware support for modern notebooks
   hardware.enableRedistributableFirmware = true;

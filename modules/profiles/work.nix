@@ -21,7 +21,7 @@ in {
   # can't complete interactive sign-in here; pin back to the last
   # Java-based release. See pkgs/microsoft-identity-broker-2.0.1.nix.
   nixpkgs.overlays = [
-    (final: prev: {
+    (final: _prev: {
       microsoft-identity-broker = final.callPackage ../../pkgs/microsoft-identity-broker-2.0.1.nix {};
     })
   ];

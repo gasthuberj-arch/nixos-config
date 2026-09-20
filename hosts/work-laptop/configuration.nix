@@ -12,7 +12,10 @@
   networking.hostName = "work-laptop";
   networking.networkmanager.enable = true;
 
-  boot.kernelParams = ["amd_pstate=active"];
+  boot.kernelParams = [
+    "amd_pstate=active"
+    "acpi_backlight=native"
+  ];
 
   # Hardware & Firmware support for modern notebooks
   hardware.enableRedistributableFirmware = true;

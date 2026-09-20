@@ -12,7 +12,10 @@
   networking.networkmanager.enable = true;
 
   # Hardware: Lenovo ThinkPad E15 Gen 2 (AMD Ryzen 7 4700U with Radeon Graphics)
-  boot.kernelParams = ["amd_pstate=active"];
+  boot.kernelParams = [
+    "amd_pstate=active"
+    "acpi_backlight=native"
+  ];
 
   # Hardware & Firmware support for modern notebooks
   hardware.enableRedistributableFirmware = true;

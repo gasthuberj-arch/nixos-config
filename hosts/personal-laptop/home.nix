@@ -7,7 +7,7 @@
   home.homeDirectory = "/home/johannes";
   home.stateVersion = "25.11";
 
-  programs.zsh.shellAliases.rebuild = "sudo nixos-rebuild switch --flake /home/johannes/code/nixos-config#personal-laptop";
+  programs.zsh.shellAliases.rebuild = "sudo nixos-rebuild switch --flake /home/johannes/config/nixos-config#personal-laptop";
 
   programs.git = {
     enable = true;

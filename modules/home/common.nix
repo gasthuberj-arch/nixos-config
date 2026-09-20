@@ -70,6 +70,8 @@ in {
     google-chrome
     vscode
     proton-vpn
+    thunderbird
+    keepassxc
 
     # Spaced repetition, with AnkiConnect baked in (declaratively, via
     # anki.withAddons) so external tools/scripts can add cards over its
@@ -164,12 +166,12 @@ in {
         claude --strict-mcp-config --settings "$sandbox_settings" "$@"
       }
 
-      # Flip kitty, GTK apps, k9s and btop between a day and night theme.
+      # Flip kitty, GTK apps, agy, k9s and btop between a day and night theme.
       # kitty remote control is per-process, so pushing colors to the socket
       # in $KITTY_LISTEN_ON would only repaint the window theme-toggle was
       # invoked from; walking every socket repaints all open instances.
       # GTK apps watching the portal setting (most GTK4/libadwaita) and bat
-      # follow immediately - k9s and btop read their theme choice once at
+      # follow immediately - agy, k9s and btop read their theme choice once at
       # startup, so they pick it up next launch.
       theme-toggle() {
         local kitty_dir="$HOME/.config/kitty"
@@ -227,7 +229,14 @@ in {
           printf -- '--theme="%s"\n' "$bat_theme" >"$HOME/.config/bat/config"
         fi
 
-        echo "→ theme: $target ($repainted kitty instance(s), GTK apps, cursor and bat live; k9s/btop apply next launch)"
+        if [ -f "$HOME/.gemini/antigravity-cli/settings.json" ] && command -v jq >/dev/null 2>&1; then
+          local agy_conf="$HOME/.gemini/antigravity-cli/settings.json"
+          local agy_theme="dark"
+          [ "$target" = day ] && agy_theme="light"
+          jq --arg t "$agy_theme" '.colorScheme = $t' "$agy_conf" > "$agy_conf.tmp" && mv "$agy_conf.tmp" "$agy_conf"
+        fi
+
+        echo "→ theme: $target ($repainted kitty instance(s), GTK apps, cursor and bat live; agy/k9s/btop apply next launch)"
       }
     '';
   };

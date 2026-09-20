@@ -29,6 +29,7 @@
     ../../modules/services/gaming.nix
     ../../modules/services/obsidian-sync.nix
     ../../modules/services/hdd-spindown.nix
+    ../../modules/services/headscale.nix
   ];
 
   # --- ZFS Boot & Pool Hardware Configuration ---
@@ -108,6 +109,7 @@
       "homeassistant.homelab.lan"
       "grafana.homelab.lan"
       "obsidian.homelab.lan"
+      "headscale.homelab.lan"
     ];
   };
 
@@ -203,7 +205,16 @@
         ppsspp = true;
       };
     };
+
+    # Headscale coordination server for Tailscale
+    headscale = {
+      enable = true;
+      port = 8085;
+    };
   };
+
+  # Tailscale routing features for subnet routing
+  services.tailscale.useRoutingFeatures = "both";
 
   # State version
   system.stateVersion = "24.11";

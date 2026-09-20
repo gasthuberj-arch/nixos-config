@@ -44,9 +44,9 @@
 
   # Disable GNOME screen blanking and power management
   services.xserver.displayManager.sessionCommands = ''
-    ${pkgs.xorg.xset}/bin/xset s off
-    ${pkgs.xorg.xset}/bin/xset -dpms
-    ${pkgs.xorg.xset}/bin/xset s noblank
+    ${pkgs.xset}/bin/xset s off
+    ${pkgs.xset}/bin/xset -dpms
+    ${pkgs.xset}/bin/xset s noblank
   '';
 
   # GNOME settings to prevent screen from turning off

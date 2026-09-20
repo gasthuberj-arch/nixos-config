@@ -52,6 +52,7 @@ in {
     which
     zellij
     jj
+    alejandra
 
     # DevOps & Kubernetes tools
     kubernetes-helm

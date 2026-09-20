@@ -212,7 +212,13 @@
         ];
       };
     };
-    formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.alejandra;
+    formatter.x86_64-linux = pkgs.writeShellScriptBin "alejandra" ''
+      if [ "$#" -eq 0 ]; then
+        exec ${pkgs.alejandra}/bin/alejandra .
+      else
+        exec ${pkgs.alejandra}/bin/alejandra "$@"
+      fi
+    '';
     # Package outputs
     packages.x86_64-linux = {
       iso = self.nixosConfigurations.homelab-installer.config.system.build.isoImage;

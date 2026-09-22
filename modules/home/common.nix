@@ -130,6 +130,8 @@ in {
       ls = "eza --icons";
       lg = "lazygit";
       k = "kubectl";
+      # TERM=xterm-kitty has no terminfo entry on most remotes; kitten ssh adds it. Alias-only.
+      ssh = "kitten ssh";
     };
     initContent = ''
       export PATH="$HOME/.local/bin:$PATH"

@@ -216,6 +216,9 @@
   # Tailscale routing features for subnet routing
   services.tailscale.useRoutingFeatures = "both";
 
+  # PostgreSQL 17 (matches existing production database in /persist/var/lib/postgresql/17)
+  services.postgresql.package = pkgs.postgresql_17;
+
   # State version
   system.stateVersion = "24.11";
 }

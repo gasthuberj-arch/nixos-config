@@ -50,6 +50,13 @@
   # Enable zsh system-wide as login shell for johannes
   programs.zsh.enable = true;
 
+  # Tailscale client for secure mesh networking
+  services.tailscale = {
+    enable = true;
+    useRoutingFeatures = "client";
+  };
+  networking.firewall.trustedInterfaces = ["tailscale0"];
+
   # System state version
   system.stateVersion = "25.11";
 }

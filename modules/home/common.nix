@@ -104,8 +104,8 @@ in {
 
     # File managers: Thunar (GUI, drag-drop/right-click copy-paste) + Yazi
     # (TUI, kitty-graphics-protocol previews)
-    xfce.thunar
-    xfce.thunar-volman
+    thunar
+    thunar-volman
     tumbler
     yazi
 

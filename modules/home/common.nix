@@ -353,6 +353,14 @@ in {
         disable_watchdog_warning = true;
       };
 
+      # Clicking a kitty notification (e.g. Claude Code) makes kitty send an
+      # xdg-activation request; honor it so the click jumps to that window.
+      # Scoped to kitty rather than global misc:focus_on_activate so other
+      # apps still can't steal focus (and keystrokes) mid-typing.
+      windowrule = [
+        "match:class ^(kitty)$, focus_on_activate on"
+      ];
+
       bind = [
         # Terminal, Menu & Clipboard
         "$mod, RETURN, exec, $terminal"

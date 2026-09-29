@@ -2,6 +2,7 @@
   imports = [
     ./hardware-configuration.nix
     ./disko-config.nix
+    ./ssh-push-gate.nix
     ../../modules/core/base.nix
     ../../modules/desktop/hyprland.nix
     ../../modules/desktop/greetd.nix

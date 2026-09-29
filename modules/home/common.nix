@@ -17,6 +17,58 @@
   cursorSize = 24;
   cursorThemeNight = "catppuccin-mocha-dark-cursors";
   cursorThemeDay = "catppuccin-latte-light-cursors";
+
+  # dunst's own follow=mouse/keyboard does nothing on Wayland: src/wayland/wl.c
+  # returns a NULL output for both and lets the compositor decide, and Hyprland
+  # then parks notifications on one fixed monitor no matter where the focus is.
+  # Naming the monitor explicitly does work, so this tails Hyprland's focus
+  # events and repoints dunst as the focus moves. It matters beyond cosmetics
+  # for the SSH key confirm prompt: a prompt on a screen you aren't looking at
+  # means touching the sensor without seeing what asked for it.
+  dunstFollowFocus = pkgs.writeShellApplication {
+    name = "dunst-follow-focus";
+    runtimeInputs = with pkgs; [coreutils dunst hyprland jq socat];
+    text = ''
+      conf="$XDG_RUNTIME_DIR/dunst-monitor.conf"
+
+      point_at() {
+        # dunstctl reload loads whatever this file says, and a dunst rule can
+        # carry a `script` that dunst then executes, so the file must never
+        # hold anything but a monitor name. Connector names are [A-Za-z0-9-];
+        # stripping the rest keeps a crafted name (hyprctl can create outputs)
+        # from smuggling a newline and a second setting in behind it.
+        local mon=''${1//[^A-Za-z0-9-]/}
+        [ -n "$mon" ] || return 0
+
+        # This file is the whole config dunst runs with: reload replaces the
+        # settings rather than merging, and dunst had no dunstrc before this,
+        # so everything else stays at dunst's built-in defaults.
+        printf '[global]\n    monitor = "%s"\n' "$mon" > "$conf"
+        dunstctl reload "$conf" || true
+      }
+
+      # exec-once neither supervises nor restarts, and losing this silently
+      # would put the SSH confirm prompt back on an unwatched screen. So no
+      # failure is fatal: a reload that loses the startup race with dunst, a
+      # compositor socket that disappears, hyprctl failing - all just retry.
+      while :; do
+        mon=$(hyprctl monitors -j | jq -r 'first(.[] | select(.focused) | .name) // empty') || mon=""
+        [ -n "$mon" ] && point_at "$mon" || true
+
+        socat -U - "UNIX-CONNECT:$XDG_RUNTIME_DIR/hypr/''${HYPRLAND_INSTANCE_SIGNATURE:-}/.socket2.sock" 2>/dev/null |
+          while IFS= read -r line; do
+            case "$line" in
+              focusedmon\>\>*)
+                rest=''${line#focusedmon>>}
+                point_at "''${rest%%,*}"
+                ;;
+            esac
+          done || true
+
+        sleep 5
+      done
+    '';
+  };
 in {
   # Plain `virsh`/`virt-manager` default to the unprivileged per-user
   # "session" libvirt instance, which can't touch host networking (no
@@ -302,6 +354,11 @@ in {
     enableZshIntegration = true;
   };
 
+  # dunst shows a notification on one output only; it can't mirror to every
+  # screen. "mouse" (identical to "keyboard" on Wayland) puts it on the
+  # output last interacted with, instead of pinning it to monitor 0 - which
+  # matters for the SSH key confirm prompt, where an unseen popup means
+  # touching the sensor without knowing what asked for it.
   # Hyprland config (ergonomic baseline with Vim navigation & Fn keys)
   wayland.windowManager.hyprland = {
     enable = true;
@@ -317,6 +374,7 @@ in {
       exec-once = [
         "waybar"
         "dunst"
+        (lib.getExe dunstFollowFocus)
         "nm-applet --indicator"
         "wl-paste --type text --watch cliphist store"
         "wl-paste --type image --watch cliphist store"

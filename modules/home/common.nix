@@ -90,6 +90,12 @@ in {
     inotify-tools # Phoenix live-reload file watching on Linux
     postgresql # psql client for local Phoenix/Ecto database work
 
+    # Rust tooling. rustup (NixOS-patched) instead of nixpkgs rustc/cargo so
+    # per-repo rust-toolchain.toml pins, extra targets, and components
+    # (clippy, rustfmt, rust-analyzer) work. Links via gcc above.
+    # One-time after switch: `rustup default stable`.
+    rustup
+
     # Desktop / Hyprland utilities
     cliphist
     wl-clipboard

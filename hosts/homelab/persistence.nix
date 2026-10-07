@@ -7,6 +7,7 @@ _: {
       "/var/lib/systemd"
       "/var/lib/NetworkManager"
       "/var/lib/tailscale"
+      "/var/lib/headscale"
       "/var/lib/caddy"
       "/var/lib/authelia-main"
       "/var/lib/immich"

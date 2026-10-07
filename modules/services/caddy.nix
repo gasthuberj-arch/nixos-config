@@ -43,6 +43,11 @@ with lib; let
       subdomain = "obsidian";
       enable = config.homelab.services.obsidian-sync.enable or false;
     }
+    {
+      name = "Headscale";
+      subdomain = "headscale";
+      enable = config.homelab.services.headscale.enable or false;
+    }
   ];
 
   enabledServices = builtins.filter (s: s.enable) myServices;

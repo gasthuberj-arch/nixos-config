@@ -46,6 +46,11 @@
   services.power-profiles-daemon.enable = true;
   services.upower.enable = true;
 
+  # Allow users in video group to control backlight directly (e.g. Waybar scroll)
+  services.udev.extraRules = ''
+    ACTION=="add", SUBSYSTEM=="backlight", RUN+="${pkgs.coreutils}/bin/chgrp video /sys/class/backlight/%k/brightness", RUN+="${pkgs.coreutils}/bin/chmod g+w /sys/class/backlight/%k/brightness"
+  '';
+
   # Bluetooth
   hardware.bluetooth.enable = true;
   services.blueman.enable = true;

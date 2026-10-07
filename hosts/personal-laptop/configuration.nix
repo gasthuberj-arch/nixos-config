@@ -11,8 +11,11 @@
   networking.hostName = "personal-laptop";
   networking.networkmanager.enable = true;
 
-  # This machine's CPU vendor isn't known yet — if it turns out to be AMD,
-  # add `boot.kernelParams = ["amd_pstate=active"];` like work-laptop does.
+  # Hardware: Lenovo ThinkPad E15 Gen 2 (AMD Ryzen 7 4700U with Radeon Graphics)
+  boot.kernelParams = [
+    "amd_pstate=active"
+    "acpi_backlight=native"
+  ];
 
   # Hardware & Firmware support for modern notebooks
   hardware.enableRedistributableFirmware = true;
@@ -46,6 +49,13 @@
 
   # Enable zsh system-wide as login shell for johannes
   programs.zsh.enable = true;
+
+  # Tailscale client for secure mesh networking
+  services.tailscale = {
+    enable = true;
+    useRoutingFeatures = "client";
+  };
+  networking.firewall.trustedInterfaces = ["tailscale0"];
 
   # System state version
   system.stateVersion = "25.11";

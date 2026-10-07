@@ -45,7 +45,9 @@ in {
     (mkIf cfg.enable {
       services.nextcloud = {
         enable = true;
-        package = pkgs.nextcloud32;
+        # Bump one major at a time: Nextcloud refuses to skip versions, and
+        # nextcloud-setup runs the occ upgrade (DB migration) on switch.
+        package = pkgs.nextcloud33;
         inherit (cfg) hostName;
         datadir = cfg.dataDir;
 

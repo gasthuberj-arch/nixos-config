@@ -4,6 +4,12 @@
   # ssh-push-gate.nix). Separate from the signing key so commits and
   # rebases don't need a touch per commit.
   githubKey = "~/.ssh/id_ed25519_github";
+  # GitHub rejects the same public key on two accounts, so the personal
+  # account (gasthuberj-arch, which owns this repo) needs its own. Gated the
+  # same way; the host alias below is only there to pick between them.
+  personalKey = "~/.ssh/id_ed25519_github_personal";
+  personalHost = "github.com-personal";
+  personalAccount = "gasthuberj-arch";
   signingKey = "~/.ssh/id_ed25519_signing";
   email = "johannes.gasthuber@manex.ai";
   # "~/.ssh/..." as the shell sees it: "$HOME" + this.
@@ -26,7 +32,9 @@ in {
   # asking for its passphrase separately at the worst moment.
   programs.zsh.initContent = ''
     unlock-keys() {
-      ssh-add ${signingKey} && ssh-add -c ${githubKey}
+      ssh-add ${signingKey} &&
+        ssh-add -c ${githubKey} &&
+        ssh-add -c ${personalKey}
     }
   '';
 
@@ -41,6 +49,14 @@ in {
       IdentitiesOnly = "yes";
       # Pinned so a stale SSH_AUTH_SOCK from the old gcr agent can't route
       # around the confirm constraint.
+      IdentityAgent = "\${XDG_RUNTIME_DIR}/ssh-agent";
+      AddKeysToAgent = "confirm";
+    };
+    settings.${personalHost} = {
+      HostName = "github.com";
+      User = "git";
+      IdentityFile = personalKey;
+      IdentitiesOnly = "yes";
       IdentityAgent = "\${XDG_RUNTIME_DIR}/ssh-agent";
       AddKeysToAgent = "confirm";
     };
@@ -66,6 +82,13 @@ in {
       # insteadOf rule from turning SSH pushes into HTTPS ones.
       url."https://github.com/".insteadOf = "git@github.com:";
       url."git@github.com:".pushInsteadOf = ["git@github.com:" "https://github.com/"];
+      # Repos under the personal account push through its own key. git picks
+      # the longest matching prefix, so this wins over the rule above for
+      # gasthuberj-arch and leaves every other org on the work key.
+      url."git@${personalHost}:${personalAccount}/".pushInsteadOf = [
+        "git@github.com:${personalAccount}/"
+        "https://github.com/${personalAccount}/"
+      ];
       credential."https://github.com".helper = "!gh auth git-credential";
     };
   };

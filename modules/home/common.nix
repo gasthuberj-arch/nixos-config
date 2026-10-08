@@ -231,10 +231,14 @@ in {
       # kitty remote control is per-process, so pushing colors to the socket
       # in $KITTY_LISTEN_ON would only repaint the window theme-toggle was
       # invoked from; walking every socket repaints all open instances.
-      # GTK apps watching the portal setting (most GTK4/libadwaita) and bat
-      # follow immediately - agy, k9s and btop read their theme choice once at
-      # startup, so they pick it up next launch.
+      # GTK apps and browsers watching the portal setting (most GTK4/libadwaita)
+      # and bat follow immediately - agy, k9s and btop read
+      # their theme choice once at startup, so they pick it up next launch.
       theme-toggle() {
+        # The (N) glob below needs bareglobqual. Non-interactive callers such as
+        # Claude Code's `!` shell turn it off, and the glob then aborts the
+        # function after the kitty symlink flip, leaving themes out of sync.
+        emulate -L zsh
         local kitty_dir="$HOME/.config/kitty"
         local current="$kitty_dir/current-theme.conf"
         local target="night"
@@ -297,7 +301,7 @@ in {
           jq --arg t "$agy_theme" '.colorScheme = $t' "$agy_conf" > "$agy_conf.tmp" && mv "$agy_conf.tmp" "$agy_conf"
         fi
 
-        echo "→ theme: $target ($repainted kitty instance(s), GTK apps, cursor and bat live; agy/k9s/btop apply next launch)"
+        echo "→ theme: $target ($repainted kitty instance(s), GTK apps, browsers, cursor and bat live; agy/k9s/btop apply next launch)"
       }
     '';
   };
@@ -374,6 +378,11 @@ in {
     # UWSM (enabled via programs.hyprland.withUWSM) owns systemd session
     # integration now; Home Manager's own integration would conflict with it.
     systemd.enable = false;
+    # Non-null enables Home Manager's own xdg.portal, which repoints
+    # NIX_XDG_DESKTOP_PORTAL_DIR at a dir holding only hyprland.portal. That
+    # hides the system's portal-gtk, the only Settings backend, so browsers
+    # silently stop following theme-toggle. modules/desktop/hyprland.nix owns portals.
+    portalPackage = null;
     settings = {
       "$mod" = "SUPER";
       "$terminal" = "kitty";

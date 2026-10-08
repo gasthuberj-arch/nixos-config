@@ -7,12 +7,12 @@
 }:
 stdenv.mkDerivation rec {
   pname = "antigravity";
-  version = "1.2.7";
-  buildId = "6731160148115456";
+  version = "1.3.1";
+  buildId = "4582356770750464";
 
   src = fetchurl {
     url = "https://storage.googleapis.com/antigravity-public/antigravity-cli/${version}-${buildId}/linux-x64/cli_linux_x64.tar.gz";
-    hash = "sha256-5BDdVtjCE+8SZD0/9eqqtXoX4Fu/culBUyLyOHn8Shg=";
+    hash = "sha256-DjE7MJ6ljHFDHOhruCCTajcA4X5E6rznvyJkYX3IIts=";
   };
 
   nativeBuildInputs = [

@@ -69,6 +69,27 @@
       done
     '';
   };
+
+  # `nixos-rebuild switch` restarts services but cannot swap the running
+  # kernel, initrd or module tree, so after a kernel bump the machine keeps
+  # running the old one until reboot.
+  waybarRebootNeeded = pkgs.writeShellApplication {
+    name = "waybar-reboot-needed";
+    runtimeInputs = with pkgs; [coreutils jq];
+    text = ''
+      booted=$(readlink /run/booted-system/{initrd,kernel,kernel-modules})
+      current=$(readlink /run/current-system/{initrd,kernel,kernel-modules})
+      if [ "$booted" = "$current" ]; then
+        jq -cn '{text: ""}'
+        exit 0
+      fi
+      # Store paths are /nix/store/<hash>-linux-<ver>/bzImage; keep linux-<ver>.
+      kver() { local p; p=$(basename "$(dirname "$(readlink "$1/kernel")")"); echo "''${p#*-}"; }
+      jq -cn --arg b "$(kver /run/booted-system)" --arg c "$(kver /run/current-system)" \
+        '{text: "⟳ reboot", class: "reboot-needed",
+          tooltip: "Kernel, initrd or modules changed since boot\nbooted:  \($b)\ncurrent: \($c)"}'
+    '';
+  };
 in {
   # Plain `virsh`/`virt-manager` default to the unprivileged per-user
   # "session" libvirt instance, which can't touch host networking (no
@@ -550,6 +571,9 @@ in {
           "hyprland/window"
         ];
         modules-right = [
+          "privacy"
+          "systemd-failed-units"
+          "custom/reboot-needed"
           "idle_inhibitor"
           "pulseaudio"
           "network"
@@ -575,6 +599,25 @@ in {
         };
         "tray" = {
           spacing = 10;
+        };
+        # Shows only while something captures the screen or a mic, via PipeWire.
+        # audio-out (the third type) is left out: playback is not a privacy signal.
+        "privacy" = {
+          icon-size = 16;
+          modules = [
+            {type = "screenshare";}
+            {type = "audio-in";}
+          ];
+        };
+        # Hidden at zero (hide-on-ok defaults to true); counts system + user units.
+        "systemd-failed-units" = {
+          format = "✗ {nr_failed} failed";
+          on-click = "kitty --hold sh -c 'systemctl --failed; systemctl --user --failed'";
+        };
+        "custom/reboot-needed" = {
+          exec = lib.getExe waybarRebootNeeded;
+          return-type = "json";
+          interval = 60;
         };
         "clock" = {
           tooltip-format = "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>";

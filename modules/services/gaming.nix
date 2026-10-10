@@ -59,6 +59,22 @@ in {
         description = "PS1 emulator (Non-commercial license)";
       };
     };
+
+    steam = {
+      enable = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Enable Steam with Proton, GameScope, and remote play firewall ports.";
+      };
+    };
+
+    controllers = {
+      enable = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Enable udev rules and drivers for game controllers (Xbox, PlayStation, Switch Pro).";
+      };
+    };
   };
 
   config = mkIf cfg.enable {
@@ -100,7 +116,12 @@ in {
     # --- Packages & Emulators ---
 
     environment.systemPackages = with pkgs;
-      (optional cfg.sunshine.enable sunshine)
+      [
+        mangohud
+        protonup-qt
+        heroic
+      ]
+      ++ (optional cfg.sunshine.enable sunshine)
       ++ (optionals cfg.emulators.enable (
         (optional cfg.emulators.retroarch retroarch)
         ++ (optional cfg.emulators.dolphin dolphin-emu)
@@ -112,6 +133,29 @@ in {
         ++ (optional cfg.emulators.ppsspp ppsspp-qt)
       ));
 
+    # --- Steam & Compatibility ---
+
+    programs.steam = mkIf cfg.steam.enable {
+      enable = true;
+      remotePlay.openFirewall = true;
+      dedicatedServer.openFirewall = true;
+      gamescopeSession.enable = true;
+      extraCompatPackages = with pkgs; [
+        proton-ge-bin
+      ];
+    };
+
+    programs.gamescope.enable = mkIf cfg.steam.enable true;
+
+    # --- Controller Support ---
+
+    hardware.xpadneo.enable = mkIf cfg.controllers.enable true;
+    services.udev.packages = mkIf cfg.controllers.enable [pkgs.game-devices-udev-rules];
+    hardware.bluetooth = mkIf cfg.controllers.enable {
+      enable = true;
+      powerOnBoot = true;
+    };
+
     # --- Hardware & Performance ---
 
     hardware.graphics = {
@@ -119,6 +163,6 @@ in {
       enable32Bit = true;
     };
 
-    programs.gamemode.enable = mkIf cfg.emulators.enable true;
+    programs.gamemode.enable = true;
   };
 }

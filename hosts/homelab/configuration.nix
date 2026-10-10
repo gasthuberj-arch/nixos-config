@@ -198,7 +198,7 @@
         retroarch = true;
         dolphin = true;
         pcsx2 = true;
-        rpcs3 = true;
+        rpcs3 = false;
         duckstation = false;
         cemu = true;
         ryubing = true;

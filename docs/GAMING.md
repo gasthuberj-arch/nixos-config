@@ -6,8 +6,11 @@ This document describes the gaming and game streaming configuration for the home
 
 The gaming module provides:
 - **Sunshine**: Game streaming server (compatible with Moonlight clients)
-- **Emulators**: Collection of gaming console emulators
-- **Performance optimizations**: GameMode and hardware acceleration
+- **Steam & Proton**: Native PC gaming with Proton-GE compatibility layer and GameScope
+- **Heroic Games Launcher**: Native support for GOG and Epic Games Store libraries
+- **Emulators**: Full collection of console emulators (Switch, PS3, PS2, Wii U, GameCube/Wii)
+- **Controller Support**: Seamless pairing for Xbox (xpadneo), PlayStation, Switch Pro, and 8BitDo gamepads
+- **Performance Tools**: GameMode, MangoHud overlay, and 32-bit graphics acceleration
 
 ## Sunshine Game Streaming
 
@@ -280,6 +283,30 @@ If you wish to use DuckStation, you must:
 - **Mednafen**: Accurate, open-source, supports many systems
 - **RetroArch with Beetle PSX core**: Part of the RetroArch suite (already enabled)
 - **EPSXE**: Popular PS1 emulator (may need manual installation)
+
+## PC Gaming & Compatibility
+
+### Steam & Proton
+Steam is pre-configured with:
+- **Proton-GE**: Custom Proton compatibility tool (`proton-ge-bin`) pre-installed for video codec support and game patches.
+- **GameScope**: Valve's micro-compositor for resolution upscaling (useful on 4K TVs).
+- **Remote Play Ports**: Firewall rules for local Steam streaming.
+
+### GOG & Epic Games (Heroic Launcher)
+- **Heroic Games Launcher** (`heroic`) is pre-installed for playing games purchased on GOG or Epic Games Store (such as *The Witcher 3: Wild Hunt*).
+- **ProtonUp-Qt** (`protonup-qt`) is installed to manage GE-Proton and Wine runners with a simple GUI.
+
+### Performance & HUD (MangoHud + GameMode)
+- **GameMode**: Automatically optimizes CPU governors and process priority during gameplay.
+- **MangoHud**: Launch any game with `mangohud %command%` in Steam or toggle it in Heroic to view live FPS, frametimes, GPU temperature, and VRAM usage on your screen.
+
+## Controllers & Input Devices
+
+The gaming module provides out-of-the-box hardware support for:
+- **Xbox Wireless Controllers**: Bluetooth pairing with full rumble and trigger feedback via the `xpadneo` kernel driver.
+- **PlayStation DualSense / DualShock**: Native udev rules via `game-devices-udev-rules`.
+- **Nintendo Switch Pro & Joy-Cons**: Full motion and button mapping via udev.
+- **Bluetooth Stack**: Automatically enabled on boot for wireless gamepads.
 
 ## Rebuilding After Changes
 

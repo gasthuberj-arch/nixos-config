@@ -19,6 +19,7 @@
 
   # Hardware & Firmware support for modern notebooks
   hardware.enableRedistributableFirmware = true;
+  services.fwupd.enable = true;
   hardware.graphics = {
     enable = true;
     enable32Bit = true;

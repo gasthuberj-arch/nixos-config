@@ -554,25 +554,19 @@ in {
       ];
 
       bindel = [
-        # Volume controls (XF86 keys + Super+F2/F3 fallback)
+        # Volume controls
         ", XF86AudioRaiseVolume, exec, ${lib.getExe volumeNotify} -l 1.5 @DEFAULT_AUDIO_SINK@ 5%+"
         ", XF86AudioLowerVolume, exec, ${lib.getExe volumeNotify} @DEFAULT_AUDIO_SINK@ 5%-"
-        "$mod, F3, exec, ${lib.getExe volumeNotify} -l 1.5 @DEFAULT_AUDIO_SINK@ 5%+"
-        "$mod, F2, exec, ${lib.getExe volumeNotify} @DEFAULT_AUDIO_SINK@ 5%-"
 
-        # Brightness controls (XF86 keys + Super+F5/F6 fallback)
+        # Brightness controls
         ", XF86MonBrightnessUp, exec, ${lib.getExe brightnessNotify} 5%+"
         ", XF86MonBrightnessDown, exec, ${lib.getExe brightnessNotify} 5%-"
-        "$mod, F6, exec, ${lib.getExe brightnessNotify} 5%+"
-        "$mod, F5, exec, ${lib.getExe brightnessNotify} 5%-"
       ];
 
       bindl = [
-        # Audio Mute toggles (XF86 keys + Super+F1/F4 fallback)
+        # Audio Mute toggles
         ", XF86AudioMute, exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
         ", XF86AudioMicMute, exec, wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"
-        "$mod, F1, exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
-        "$mod, F4, exec, wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"
       ];
 
       bindm = [

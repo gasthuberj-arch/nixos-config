@@ -90,6 +90,26 @@
           tooltip: "Kernel, initrd or modules changed since boot\nbooted:  \($b)\ncurrent: \($c)"}'
     '';
   };
+
+  volumeNotify = pkgs.writeShellApplication {
+    name = "volume-notify";
+    runtimeInputs = with pkgs; [wireplumber gawk dunst];
+    text = ''
+      wpctl set-volume "$@"
+      vol=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ | awk '{print int($2*100)}')
+      dunstify -h string:x-canonical-private-synchronous:volume -h int:value:"$vol" -u low "Volume: $vol%" -t 1000
+    '';
+  };
+
+  brightnessNotify = pkgs.writeShellApplication {
+    name = "brightness-notify";
+    runtimeInputs = with pkgs; [brightnessctl coreutils dunst];
+    text = ''
+      brightnessctl set "$@"
+      pct=$(brightnessctl -m | cut -d',' -f4 | tr -d '%')
+      dunstify -h string:x-canonical-private-synchronous:brightness -h int:value:"$pct" -u low "Brightness: $pct%" -t 1000
+    '';
+  };
 in {
   # Plain `virsh`/`virt-manager` default to the unprivileged per-user
   # "session" libvirt instance, which can't touch host networking (no
@@ -456,6 +476,7 @@ in {
       # Scoped to kitty rather than global misc:focus_on_activate so other
       # apps still can't steal focus (and keystrokes) mid-typing.
       windowrule = [
+        "match:class .*, suppress_event maximize"
         "match:class ^(kitty)$, focus_on_activate on"
       ];
 
@@ -533,18 +554,25 @@ in {
       ];
 
       bindel = [
-        # Volume controls
-        ", XF86AudioRaiseVolume, exec, wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 5%+"
-        ", XF86AudioLowerVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
-        # Brightness controls
-        ", XF86MonBrightnessUp, exec, brightnessctl set 5%+"
-        ", XF86MonBrightnessDown, exec, brightnessctl set 5%-"
+        # Volume controls (XF86 keys + Super+F2/F3 fallback)
+        ", XF86AudioRaiseVolume, exec, ${lib.getExe volumeNotify} -l 1.5 @DEFAULT_AUDIO_SINK@ 5%+"
+        ", XF86AudioLowerVolume, exec, ${lib.getExe volumeNotify} @DEFAULT_AUDIO_SINK@ 5%-"
+        "$mod, F3, exec, ${lib.getExe volumeNotify} -l 1.5 @DEFAULT_AUDIO_SINK@ 5%+"
+        "$mod, F2, exec, ${lib.getExe volumeNotify} @DEFAULT_AUDIO_SINK@ 5%-"
+
+        # Brightness controls (XF86 keys + Super+F5/F6 fallback)
+        ", XF86MonBrightnessUp, exec, ${lib.getExe brightnessNotify} 5%+"
+        ", XF86MonBrightnessDown, exec, ${lib.getExe brightnessNotify} 5%-"
+        "$mod, F6, exec, ${lib.getExe brightnessNotify} 5%+"
+        "$mod, F5, exec, ${lib.getExe brightnessNotify} 5%-"
       ];
 
       bindl = [
-        # Audio Mute toggles
+        # Audio Mute toggles (XF86 keys + Super+F1/F4 fallback)
         ", XF86AudioMute, exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
         ", XF86AudioMicMute, exec, wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"
+        "$mod, F1, exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
+        "$mod, F4, exec, wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"
       ];
 
       bindm = [
@@ -702,6 +730,7 @@ in {
       font_family = "JetBrainsMono Nerd Font";
       font_size = "11.0";
       enable_audio_bell = false;
+      remember_window_size = false;
       background_opacity = "0.95";
       # Remote control, scoped to this user via a per-pid socket, lets
       # `theme-toggle` push new colors into already-open windows/tabs instead

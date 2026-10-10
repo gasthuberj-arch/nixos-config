@@ -47,9 +47,21 @@
   services.upower.enable = true;
 
   # Allow users in video group to control backlight directly (e.g. Waybar scroll)
+  # and ensure all ThinkPad ACPI hotkeys (brightness, media, special keys) are reported to the OS
   services.udev.extraRules = ''
     ACTION=="add", SUBSYSTEM=="backlight", RUN+="${pkgs.coreutils}/bin/chgrp video /sys/class/backlight/%k/brightness", RUN+="${pkgs.coreutils}/bin/chmod g+w /sys/class/backlight/%k/brightness"
+    ACTION=="add", SUBSYSTEM=="platform", DRIVER=="thinkpad_acpi", ATTR{hotkey_mask}="0xfffffffb"
   '';
+
+  systemd.services.thinkpad-hotkey-mask = {
+    description = "Enable all ThinkPad ACPI hotkeys";
+    wantedBy = ["multi-user.target"];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.bash}/bin/bash -c 'if [ -f /sys/devices/platform/thinkpad_acpi/hotkey_all_mask ]; then cat /sys/devices/platform/thinkpad_acpi/hotkey_all_mask > /sys/devices/platform/thinkpad_acpi/hotkey_mask; fi'";
+      RemainAfterExit = true;
+    };
+  };
 
   # Bluetooth
   hardware.bluetooth.enable = true;

@@ -1,4 +1,8 @@
-{lib, ...}: {
+{
+  lib,
+  pkgs,
+  ...
+}: {
   imports = [
     ../../modules/home/common.nix
   ];
@@ -6,6 +10,10 @@
   home.username = "johannes";
   home.homeDirectory = "/home/johannes";
   home.stateVersion = "25.11";
+
+  home.packages = with pkgs; [
+    moonlight-qt
+  ];
 
   programs.zsh.shellAliases.rebuild = "sudo nixos-rebuild switch --flake /home/johannes/config/nixos-config#personal-laptop";
 

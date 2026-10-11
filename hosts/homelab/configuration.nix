@@ -57,6 +57,9 @@
     }
   ];
 
+  # Force virtual display on HDMI-A-1 for headless game streaming
+  boot.kernelParams = ["video=HDMI-A-1:1920x1080@60e"];
+
   # ZFS filesystems & maintenance
   boot.supportedFilesystems = ["zfs"];
   boot.zfs.forceImportRoot = false;

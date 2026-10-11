@@ -29,6 +29,7 @@
     powerOnBoot = true;
   };
   services.blueman.enable = true;
+  services.udev.packages = [pkgs.game-devices-udev-rules];
 
   # Trash/mount/network-share backend Thunar needs for real copy-paste
   # (without it, cut/paste and the trash can silently no-op).

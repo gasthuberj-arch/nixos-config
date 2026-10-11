@@ -105,8 +105,10 @@ in {
       enable = true;
       autoStart = true;
       capSysAdmin = true;
-      openFirewall = false; # Handled manually above
+      openFirewall = cfg.sunshine.openFirewall;
     };
+
+    users.users.${cfg.user}.extraGroups = ["uinput"];
 
     # Fix Wayland environment for Sunshine
     systemd.user.services.sunshine = mkIf cfg.sunshine.enable {

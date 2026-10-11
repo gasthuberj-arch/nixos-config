@@ -219,6 +219,14 @@
   # PostgreSQL 17 (matches existing production database in /persist/var/lib/postgresql/17)
   services.postgresql.package = pkgs.postgresql_17;
 
+  # Shell history with Atuin
+  programs.atuin = {
+    enable = true;
+    enableBashIntegration = true;
+  };
+  # Allow Atuin to read user config from ~/.config/atuin instead of forcing /etc/atuin
+  environment.variables.ATUIN_CONFIG_DIR = lib.mkForce null;
+
   # State version
   system.stateVersion = "24.11";
 }

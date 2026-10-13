@@ -91,6 +91,7 @@ in {
       after = ["graphical-session.target"];
       partOf = ["graphical-session.target"];
       script = ''
+        sleep 2
         for s in $(${pkgs.systemd}/bin/loginctl list-sessions --no-legend | ${pkgs.gawk}/bin/awk '$4 ~ /^seat/ {print $1}'); do
           ${pkgs.systemd}/bin/loginctl lock-session "$s"
         done
@@ -111,6 +112,8 @@ in {
       capSysAdmin = true;
       openFirewall = cfg.sunshine.openFirewall;
     };
+
+    security.wrappers.sunshine.capabilities = mkIf cfg.sunshine.enable (lib.mkForce "cap_sys_admin,cap_sys_nice+p");
 
     users.users.${cfg.user}.extraGroups = ["uinput"];
 

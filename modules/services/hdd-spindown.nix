@@ -24,7 +24,55 @@ in {
   };
 
   config = mkIf cfg.enable {
-    environment.systemPackages = [pkgs.hdparm];
+    environment.systemPackages = [
+      pkgs.hdparm
+      (pkgs.writeShellScriptBin "spindown-disks" ''
+        set -eu
+        if [ "$EUID" -ne 0 ]; then
+          exec sudo "$0" "$@"
+        fi
+        echo "Spinning down hard drives..."
+        for dev_name in ${toString cfg.devices}; do
+          if [[ "$dev_name" == /* ]]; then
+            dev="$dev_name"
+          else
+            dev="/dev/disk/by-id/$dev_name"
+          fi
+          if [ -b "$dev" ]; then
+            echo "Putting $dev into standby..."
+            ${pkgs.hdparm}/bin/hdparm -y "$dev" || true
+          fi
+        done
+        echo ""
+        echo "Current disk power states:"
+        for dev_name in ${toString cfg.devices}; do
+          if [[ "$dev_name" == /* ]]; then
+            dev="$dev_name"
+          else
+            dev="/dev/disk/by-id/$dev_name"
+          fi
+          if [ -b "$dev" ]; then
+            ${pkgs.hdparm}/bin/hdparm -C "$dev" || true
+          fi
+        done
+      '')
+      (pkgs.writeShellScriptBin "check-disk-power" ''
+        set -eu
+        if [ "$EUID" -ne 0 ]; then
+          exec sudo "$0" "$@"
+        fi
+        for dev_name in ${toString cfg.devices}; do
+          if [[ "$dev_name" == /* ]]; then
+            dev="$dev_name"
+          else
+            dev="/dev/disk/by-id/$dev_name"
+          fi
+          if [ -b "$dev" ]; then
+            ${pkgs.hdparm}/bin/hdparm -C "$dev" || true
+          fi
+        done
+      '')
+    ];
 
     systemd.services.hdd-spindown = {
       description = "Configure HDD Spindown Timeouts";

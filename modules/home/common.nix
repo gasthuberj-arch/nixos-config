@@ -407,11 +407,6 @@ in {
     enableZshIntegration = true;
   };
 
-  # dunst shows a notification on one output only; it can't mirror to every
-  # screen. "mouse" (identical to "keyboard" on Wayland) puts it on the
-  # output last interacted with, instead of pinning it to monitor 0 - which
-  # matters for the SSH key confirm prompt, where an unseen popup means
-  # touching the sensor without knowing what asked for it.
   # Hyprland config (ergonomic baseline with Vim navigation & Fn keys)
   wayland.windowManager.hyprland = {
     enable = true;
@@ -431,7 +426,10 @@ in {
 
       exec-once = [
         "waybar"
-        "dunst"
+        # No "dunst" here: its packaged dunst.service is D-Bus activated on
+        # org.freedesktop.Notifications (dunstctl reload below triggers it).
+        # Launching it here as well raced that activation each boot, and the
+        # loser exited 1, leaving either a failed unit or an unsupervised dunst.
         (lib.getExe dunstFollowFocus)
         "nm-applet --indicator"
         "wl-paste --type text --watch cliphist store"

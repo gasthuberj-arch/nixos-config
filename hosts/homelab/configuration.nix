@@ -230,6 +230,11 @@
   # Allow Atuin to read user config from ~/.config/atuin instead of forcing /etc/atuin
   environment.variables.ATUIN_CONFIG_DIR = lib.mkForce null;
 
+  # System monitoring
+  environment.systemPackages = [
+    pkgs.btop
+  ];
+
   # State version
   system.stateVersion = "24.11";
 }

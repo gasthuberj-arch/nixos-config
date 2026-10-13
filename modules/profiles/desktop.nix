@@ -58,7 +58,7 @@
           idle-delay = lib.gvariant.mkUint32 0; # Never go idle
         };
         "org/gnome/desktop/screensaver" = {
-          lock-enabled = false;
+          lock-enabled = true;
           idle-activation-enabled = false;
         };
         "org/gnome/settings-daemon/plugins/power" = {

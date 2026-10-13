@@ -90,9 +90,13 @@ in {
       description = "Lock screen immediately for secure auto-login";
       after = ["graphical-session.target"];
       partOf = ["graphical-session.target"];
+      script = ''
+        for s in $(${pkgs.systemd}/bin/loginctl list-sessions --no-legend | ${pkgs.gawk}/bin/awk '$4 ~ /^seat/ {print $1}'); do
+          ${pkgs.systemd}/bin/loginctl lock-session "$s"
+        done
+      '';
       serviceConfig = {
         Type = "oneshot";
-        ExecStart = "${pkgs.systemd}/bin/loginctl lock-session";
         Restart = "on-failure";
         RestartSec = "5s";
       };

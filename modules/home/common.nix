@@ -162,7 +162,6 @@ in {
 
     # GUI Applications & Browsers
     google-chrome
-    vscode
     proton-vpn
     thunderbird
     keepassxc
@@ -380,6 +379,131 @@ in {
   };
 
   programs.bat.enable = true;
+
+  # VS Code, set up for reviewing code (PRs and agent output) with Vim keys.
+  # Extensions come from nixpkgs so every laptop gets the same set; Nix owns
+  # their versions, which is why in-app updates are switched off below.
+  programs.vscode = {
+    enable = true;
+    profiles.default.extensions = with pkgs.vscode-extensions; [
+      vscodevim.vim
+      github.vscode-pull-request-github # review + comment on PRs inline
+      eamodio.gitlens # blame, history, compare branches/commits
+      usernamehw.errorlens # diagnostics inline instead of hover-only
+      anthropic.claude-code # agent diffs open in the native diff editor
+      mkhl.direnv # loads a repo's nix devshell so its LSPs resolve
+      jnoortheen.nix-ide
+      rust-lang.rust-analyzer
+      ms-python.python
+      elixir-lsp.vscode-elixir-ls
+    ];
+  };
+
+  # Not programs.vscode.profiles.default.userSettings: that turns settings.json
+  # into a read-only store symlink, and VS Code then errors on every UI change
+  # (theme picker, "don't show again", per-extension prompts). Instead the keys
+  # below are merged over the mutable file on each activation: these win, and
+  # everything else VS Code writes survives.
+  home.activation.vscodeSettings = let
+    managed = pkgs.writeText "vscode-managed-settings.json" (builtins.toJSON {
+      # Follow gsettings color-scheme, which theme-toggle flips.
+      "window.autoDetectColorScheme" = true;
+      "workbench.preferredDarkColorTheme" = "Default Dark Modern";
+      "workbench.preferredLightColorTheme" = "Default Light Modern";
+
+      # Nix pins VS Code and the extensions above; self-updates would fight it.
+      "update.mode" = "none";
+      "extensions.autoUpdate" = false;
+      "extensions.autoCheckUpdates" = false;
+
+      # Review ergonomics: fold unchanged code, and show moved blocks as moves
+      # rather than delete+add (agents shuffle code around a lot).
+      "diffEditor.hideUnchangedRegions.enabled" = true;
+      "diffEditor.experimental.showMoves" = true;
+      "diffEditor.renderSideBySide" = true;
+
+      "nix.enableLanguageServer" = true;
+      "nix.serverPath" = "${pkgs.nixd}/bin/nixd";
+
+      "vim.leader" = "<space>";
+      "vim.useSystemClipboard" = true;
+      "vim.smartRelativeLine" = true;
+      "vim.hlsearch" = true;
+      "vim.incsearch" = true;
+      "vim.highlightedyank.enable" = true;
+      # Built-in emulations of the usual plugins (surround and commentary are
+      # on by default).
+      "vim.easymotion" = true;
+      "vim.sneak" = true;
+      # Hand these back to VS Code: Ctrl+P quick open, Ctrl+B sidebar.
+      "vim.handleKeys" = {
+        "<C-p>" = false;
+        "<C-b>" = false;
+      };
+      "vim.normalModeKeyBindingsNonRecursive" = [
+        # gitgutter-style hunk navigation
+        {
+          before = ["]" "c"];
+          commands = ["workbench.action.editor.nextChange"];
+        }
+        {
+          before = ["[" "c"];
+          commands = ["workbench.action.editor.previousChange"];
+        }
+        {
+          before = ["<leader>" "h" "p"];
+          commands = ["editor.action.dirtydiff.next"];
+        }
+        {
+          before = ["]" "d"];
+          commands = ["editor.action.marker.next"];
+        }
+        {
+          before = ["[" "d"];
+          commands = ["editor.action.marker.prev"];
+        }
+        {
+          before = ["<leader>" "f" "f"];
+          commands = ["workbench.action.quickOpen"];
+        }
+        {
+          before = ["<leader>" "f" "g"];
+          commands = ["workbench.action.findInFiles"];
+        }
+        {
+          before = ["<leader>" "g" "s"];
+          commands = ["workbench.view.scm"];
+        }
+        {
+          before = ["<leader>" "g" "b"];
+          commands = ["gitlens.toggleFileBlame"];
+        }
+        {
+          before = ["<leader>" "c" "a"];
+          commands = ["editor.action.quickFix"];
+        }
+        {
+          before = ["<leader>" "r" "n"];
+          commands = ["editor.action.rename"];
+        }
+      ];
+    });
+  in
+    lib.hm.dag.entryAfter ["writeBoundary"] ''
+      settings="$HOME/.config/Code/User/settings.json"
+      mkdir -p "$(dirname "$settings")"
+      [ -s "$settings" ] || echo '{}' >"$settings"
+      # VS Code allows comments in settings.json and jq does not; if the file
+      # doesn't parse, leave it untouched rather than clobber it.
+      # jq `*` is a recursive merge where the right operand wins: managed
+      # (.[1]) overrides the user's existing keys (.[0]), not the reverse.
+      if ${pkgs.jq}/bin/jq -s '.[0] * .[1]' "$settings" ${managed} >"$settings.tmp"; then
+        mv "$settings.tmp" "$settings"
+      else
+        rm -f "$settings.tmp"
+        echo "vscodeSettings: $settings is not plain JSON, skipped merge" >&2
+      fi
+    '';
 
   # Office web apps (PowerPoint/Word Online) intercept Ctrl+V via the
   # async Clipboard API, which Firefox blocks by default for JS-triggered

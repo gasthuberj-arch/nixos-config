@@ -232,7 +232,7 @@
 
   # System monitoring
   environment.systemPackages = [
-    (pkgs.btop.override { rocmSupport = true; })
+    (pkgs.btop.override {rocmSupport = true;})
   ];
 
   # State version

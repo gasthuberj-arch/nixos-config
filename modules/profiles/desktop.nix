@@ -49,6 +49,11 @@
     ${pkgs.xset}/bin/xset s noblank
   '';
 
+  # Extension to prevent lock screen from turning off monitor via DPMS
+  environment.systemPackages = with pkgs; [
+    gnomeExtensions.unblank
+  ];
+
   # GNOME settings to prevent screen from turning off
   programs.dconf.enable = true;
   programs.dconf.profiles.user.databases = [
@@ -65,6 +70,16 @@
           sleep-inactive-ac-type = "nothing";
           sleep-inactive-battery-type = "nothing";
           idle-dim = false;
+        };
+        "org/gnome/shell" = {
+          disable-user-extensions = false;
+          enabled-extensions = [
+            "unblank@sun.wxg@gmail.com"
+          ];
+        };
+        "org/gnome/shell/extensions/unblank" = {
+          time = lib.gvariant.mkInt32 0;
+          power = false;
         };
       };
     }

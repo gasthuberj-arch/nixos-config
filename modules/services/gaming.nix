@@ -91,7 +91,7 @@ in {
       after = ["graphical-session.target"];
       partOf = ["graphical-session.target"];
       script = ''
-        sleep 2
+        sleep 4
         for s in $(${pkgs.systemd}/bin/loginctl list-sessions --no-legend | ${pkgs.gawk}/bin/awk '$4 ~ /^seat/ {print $1}'); do
           ${pkgs.systemd}/bin/loginctl lock-session "$s"
         done

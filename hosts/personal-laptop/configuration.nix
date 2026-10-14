@@ -10,6 +10,7 @@
 
   networking.hostName = "personal-laptop";
   networking.networkmanager.enable = true;
+  networking.networkmanager.wifi.powersave = false;
 
   # Hardware: Lenovo ThinkPad E15 Gen 2 (AMD Ryzen 7 4700U with Radeon Graphics)
   boot.kernelParams = [

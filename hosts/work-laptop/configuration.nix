@@ -12,6 +12,7 @@
 
   networking.hostName = "work-laptop";
   networking.networkmanager.enable = true;
+  networking.networkmanager.wifi.powersave = false;
 
   boot.kernelParams = [
     "amd_pstate=active"

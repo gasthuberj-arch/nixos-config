@@ -11,12 +11,12 @@
 #   nix hash convert --to sri --hash-algo sha256 $(nix-prefetch-url <url>)
 stdenv.mkDerivation rec {
   pname = "antigravity";
-  version = "1.3.3";
-  buildId = "5524738307653632";
+  version = "1.4.0";
+  buildId = "5281842794987520";
 
   src = fetchurl {
     url = "https://storage.googleapis.com/antigravity-public/antigravity-cli/${version}-${buildId}/linux-x64/cli_linux_x64.tar.gz";
-    hash = "sha256-juPKMldMQxKF779NRzL3+NU+lZNwvEphZG5PpJb38rY=";
+    hash = "sha256-/ZaWdYPB7tlHM8A5Y4+lm3HdvYI8devI3Q5ndGNWWq0=";
   };
 
   nativeBuildInputs = [

@@ -18,6 +18,11 @@
     "acpi_backlight=native"
   ];
 
+  # Disable Intel Wi-Fi firmware power-saving scheme (1=active) to eliminate latency jitter
+  boot.extraModprobeConfig = ''
+    options iwlmvm power_scheme=1
+  '';
+
   # Hardware & Firmware support for modern notebooks
   hardware.enableRedistributableFirmware = true;
   services.fwupd.enable = true;

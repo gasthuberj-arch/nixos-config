@@ -689,6 +689,12 @@ in {
         # Audio Mute toggles
         ", XF86AudioMute, exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
         ", XF86AudioMicMute, exec, wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"
+
+        # A closed lid doesn't disconnect eDP-1, so Hyprland kept workspaces on
+        # the invisible panel. Disabling it migrates them to external monitors.
+        # Undocked, logind suspends on lid close before this matters.
+        ", switch:on:Lid Switch, exec, hyprctl keyword monitor 'eDP-1,disable'"
+        ", switch:off:Lid Switch, exec, hyprctl keyword monitor 'eDP-1,preferred,auto,1'"
       ];
 
       bindm = [

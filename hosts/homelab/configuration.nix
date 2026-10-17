@@ -235,6 +235,11 @@
     (pkgs.btop.override {rocmSupport = true;})
   ];
 
+  # Authorized SSH keys for homelab
+  users.users.johannes.openssh.authorizedKeys.keys = [
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPQqC5ARFNlBdg57mKQfe8K30sWVE2UO+ytPiyeL0DCi johannes@tab-s7"
+  ];
+
   # State version
   system.stateVersion = "24.11";
 }

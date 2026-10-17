@@ -29,7 +29,6 @@
     ../../modules/services/gaming.nix
     ../../modules/services/obsidian-sync.nix
     ../../modules/services/hdd-spindown.nix
-    ../../modules/services/headscale.nix
   ];
 
   # --- ZFS Boot & Pool Hardware Configuration ---
@@ -208,27 +207,29 @@
         ppsspp = true;
       };
     };
-
-    # Headscale coordination server for Tailscale (disabled in favor of Tailscale SaaS)
-    headscale = {
-      enable = false;
-      port = 8085;
-    };
   };
 
   # Lightweight DNS responder for Tailscale Split DNS (*.homelab.lan)
   services.dnsmasq = {
     enable = true;
+    resolveLocalQueries = false;
     settings = {
       interface = "tailscale0";
       bind-dynamic = true;
       no-hosts = true;
       address = "/homelab.lan/100.98.72.36";
+      server = [
+        "1.1.1.1"
+        "8.8.8.8"
+      ];
     };
   };
 
-  # Tailscale routing features for subnet routing
+  networking.nameservers = ["1.1.1.1" "8.8.8.8"];
+
+  # Tailscale routing features for subnet routing and trusted firewall interface
   services.tailscale.useRoutingFeatures = "both";
+  networking.firewall.trustedInterfaces = ["tailscale0"];
 
   # PostgreSQL 17 (matches existing production database in /persist/var/lib/postgresql/17)
   services.postgresql.package = pkgs.postgresql_17;

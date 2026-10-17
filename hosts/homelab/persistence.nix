@@ -7,7 +7,6 @@ _: {
       "/var/lib/systemd"
       "/var/lib/NetworkManager"
       "/var/lib/tailscale"
-      "/var/lib/headscale"
       "/var/lib/caddy"
       "/var/lib/authelia-main"
       "/var/lib/immich"
@@ -42,5 +41,35 @@ _: {
         ".ssh"
       ];
     };
+  };
+
+  # Prevent impermanence from unmounting persistent files during live rebuild switches.
+  # Unmounting /etc/machine-id kills dbus-broker, which freezes switch-to-configuration
+  # in an infinite DBus loop and prevents services (Immich, Paperless, etc.) from restarting.
+  systemd.services = {
+    "persist-persist-etc-machine\\x2did" = {
+      stopIfChanged = false;
+      restartIfChanged = false;
+    };
+    "persist-persist-etc-ssh-ssh_host_ed25519_key" = {
+      stopIfChanged = false;
+      restartIfChanged = false;
+    };
+    "persist-persist-etc-ssh-ssh_host_ed25519_key.pub" = {
+      stopIfChanged = false;
+      restartIfChanged = false;
+    };
+    "persist-persist-etc-ssh-ssh_host_rsa_key" = {
+      stopIfChanged = false;
+      restartIfChanged = false;
+    };
+    "persist-persist-etc-ssh-ssh_host_rsa_key.pub" = {
+      stopIfChanged = false;
+      restartIfChanged = false;
+    };
+
+    # systemd-machine-id-commit fails on impermanence because /etc/machine-id is
+    # already a persistent bind mount ("not on a temporary file system").
+    systemd-machine-id-commit.enable = false;
   };
 }

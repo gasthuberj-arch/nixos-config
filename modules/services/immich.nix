@@ -56,6 +56,9 @@ in {
       };
     };
 
+    # Ensure Immich waits for the media location to be mounted
+    systemd.services.immich-server.unitConfig.RequiresMountsFor = [cfg.mediaLocation];
+
     # Ensure media directory exists and has correct permissions
     systemd.tmpfiles.rules = [
       "d ${cfg.mediaLocation} 0750 immich immich -"

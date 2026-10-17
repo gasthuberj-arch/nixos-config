@@ -94,7 +94,14 @@ in {
     services.caddy.virtualHosts."${cfg.subdomain}.${caddyCfg.domain}" = mkIf caddyCfg.enable {
       extraConfig = ''
         tls internal
-        reverse_proxy localhost:${toString cfg.port}
+        request_body {
+          max_size 50GB
+        }
+        reverse_proxy localhost:${toString cfg.port} {
+          transport http {
+            response_header_timeout 600s
+          }
+        }
       '';
     };
   };

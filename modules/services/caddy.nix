@@ -159,6 +159,16 @@ in {
           }
         }
 
+        # Server timeouts for large media uploads
+        servers {
+          timeouts {
+            read_body 30m
+            read_header 30s
+            write 30m
+            idle 5m
+          }
+        }
+
         ${optionalString (cfg.email != "") ''
           email ${cfg.email}
         ''}

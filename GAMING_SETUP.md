@@ -167,6 +167,34 @@ gamemoderun <emulator-command>
 # Check GPU drivers
 glxinfo | grep "OpenGL renderer"
 ```
+## GPU Energy Saving & Spindown
+
+When you are not actively gaming or streaming, you can spin down the GPU and terminate any leftover tasks to save power and keep temperatures and fan noise to zero.
+
+### Running from your laptop / remote machine:
+
+```bash
+# Spin down GPU into low-power mode & terminate leftover game tasks
+./scripts/spindown-gpu.sh
+
+# Check GPU power draw, temperatures, clocks, and active users
+./scripts/check-gpu-power.sh
+
+# Terminate stuck emulators or game processes without spinning down
+./scripts/kill-gpu-tasks.sh
+
+# Spin up GPU back to dynamic performance when ready to game
+./scripts/spinup-gpu.sh
+```
+
+### Running directly on the homelab server:
+
+The following CLI utilities are installed in `$PATH` on the server:
+- `spindown-gpu`: Drops GPU clocks to minimum (`power_dpm_force_performance_level low`), switches profile to `POWER_SAVING`, terminates active game tasks, and locks the display.
+- `spinup-gpu`: Restores dynamic performance scaling (`auto` DPM) and wakes display.
+- `kill-gpu-tasks`: Terminates emulators, Wine/Proton, Steam, and unwhitelisted processes accessing `/dev/dri/*`. Use `--include-sunshine` to stop Sunshine as well, or `--dry-run` to preview.
+- `check-gpu-power`: Real-time summary of GPU power draw (Watts), temperatures, clock speeds, and active GPU users.
+- `amdgpu_top`: Interactive terminal dashboard for AMD GPU monitoring.
 
 ## Security Notes
 

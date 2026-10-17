@@ -29,6 +29,7 @@
     ../../modules/services/gaming.nix
     ../../modules/services/obsidian-sync.nix
     ../../modules/services/hdd-spindown.nix
+    ../../modules/services/gpu-power.nix
   ];
 
   # --- ZFS Boot & Pool Hardware Configuration ---
@@ -160,6 +161,12 @@
       enable = true;
       devices = config.zfs-root.sataDevices;
       spindownTimeout = 180; # 15 minutes
+    };
+
+    # GPU Power Management & Task Control
+    gpu-power = {
+      enable = true;
+      user = "johannes";
     };
 
     # Home Assistant home automation

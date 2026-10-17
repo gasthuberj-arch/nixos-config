@@ -170,7 +170,7 @@ in {
           extraConfig = ''
             tls internal
             handle /root.crt {
-              root * /var/lib/caddy/data/caddy/pki/authorities/local
+              root * /var/lib/caddy/data/pki/authorities/local
               file_server
             }
             root * ${dashboardPkg}
@@ -182,7 +182,7 @@ in {
           extraConfig = ''
             tls internal
             handle /root.crt {
-              root * /var/lib/caddy/data/caddy/pki/authorities/local
+              root * /var/lib/caddy/data/pki/authorities/local
               file_server
             }
             root * ${dashboardPkg}
@@ -193,7 +193,7 @@ in {
         "http://:80" = {
           extraConfig = ''
             handle /root.crt {
-              root * /var/lib/caddy/data/caddy/pki/authorities/local
+              root * /var/lib/caddy/data/pki/authorities/local
               file_server
             }
             root * ${dashboardPkg}

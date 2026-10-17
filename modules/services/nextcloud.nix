@@ -39,6 +39,14 @@ in {
       default = null;
       description = "File containing the admin password";
     };
+
+    sso = {
+      enable = mkOption {
+        type = types.bool;
+        default = config.homelab.services.authelia.enable or false;
+        description = "Enable Authelia OIDC SSO for Nextcloud";
+      };
+    };
   };
 
   config = mkMerge [
@@ -72,27 +80,52 @@ in {
           dbhost = "/run/postgresql";
         };
 
-        # Additional settings
-        settings = {
-          # Trust proxy headers from Caddy
-          trusted_proxies = ["127.0.0.1" "::1"];
-          overwriteprotocol = "https";
-
-          # Performance settings
-          "memcache.local" = "\\OC\\Memcache\\APCu";
-          "memcache.distributed" = "\\OC\\Memcache\\Redis";
-          "memcache.locking" = "\\OC\\Memcache\\Redis";
-          redis = {
-            host = "/run/redis-nextcloud/redis.sock";
-            port = 0;
-          };
-
-          # Default phone region
-          default_phone_region = "DE";
-
-          # Maintenance window (UTC time, 3 AM CET = 2 AM UTC)
-          maintenance_window_start = 2;
+        # Extra apps for OIDC SSO
+        extraApps = mkIf cfg.sso.enable {
+          inherit (config.services.nextcloud.package.packages.apps) oidc_login;
         };
+        extraAppsEnable = mkIf cfg.sso.enable true;
+
+        # Additional settings
+        settings =
+          {
+            # Trust proxy headers from Caddy
+            trusted_proxies = ["127.0.0.1" "::1"];
+            overwriteprotocol = "https";
+
+            # Performance settings
+            "memcache.local" = "\\OC\\Memcache\\APCu";
+            "memcache.distributed" = "\\OC\\Memcache\\Redis";
+            "memcache.locking" = "\\OC\\Memcache\\Redis";
+            redis = {
+              host = "/run/redis-nextcloud/redis.sock";
+              port = 0;
+            };
+
+            # Default phone region
+            default_phone_region = "DE";
+
+            # Maintenance window (UTC time, 3 AM CET = 2 AM UTC)
+            maintenance_window_start = 2;
+          }
+          // optionalAttrs cfg.sso.enable {
+            oidc_login_provider_url = "https://auth.${config.homelab.services.caddy.domain}";
+            oidc_login_client_id = "nextcloud";
+            oidc_login_client_secret = "insecure_secret";
+            oidc_login_auto_redirect = false;
+            oidc_login_button_text = "Log in with Authelia";
+            oidc_login_hide_password_form = false;
+            oidc_login_use_id_token = false;
+            oidc_login_scope = "openid profile email groups";
+            oidc_login_attributes = {
+              id = "preferred_username";
+              name = "name";
+              mail = "email";
+              groups = "groups";
+            };
+            oidc_login_default_group = "users";
+            oidc_login_use_external_storage = false;
+          };
 
         # Enable APCu for local caching
         phpOptions = {

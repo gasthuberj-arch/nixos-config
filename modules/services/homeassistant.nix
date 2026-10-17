@@ -34,6 +34,14 @@ in {
       default = false;
       description = "Whether to open the firewall for Home Assistant";
     };
+
+    sso = {
+      enable = mkOption {
+        type = types.bool;
+        default = config.homelab.services.authelia.enable or false;
+        description = "Enable Authelia forward authentication for Home Assistant web UI";
+      };
+    };
   };
 
   config = mkIf cfg.enable {
@@ -83,6 +91,16 @@ in {
     services.caddy.virtualHosts."${cfg.subdomain}.${caddyCfg.domain}" = mkIf caddyCfg.enable {
       extraConfig = ''
         tls internal
+        ${optionalString cfg.sso.enable ''
+          @needsAuth {
+            not path /api/*
+            not path /auth/token
+          }
+          forward_auth @needsAuth 127.0.0.1:${toString config.homelab.services.authelia.port} {
+            uri /api/verify?rd=https://auth.${caddyCfg.domain}/
+            copy_headers Remote-User Remote-Groups Remote-Name Remote-Email
+          }
+        ''}
         reverse_proxy localhost:${toString cfg.port}
       '';
     };

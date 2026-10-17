@@ -28,7 +28,7 @@ User → Caddy (Reverse Proxy) → Service
 | Nextcloud | OIDC | ✅ Full | Via oidc_login app |
 | Immich | OIDC | ✅ Full | Native OAuth support |
 | Paperless | OIDC | ✅ Full | Via django-allauth |
-| Home Assistant | Forward Auth | ⚠️ Partial | Requires manual config |
+| Home Assistant | Forward Auth | ✅ Full | Protected via Caddy Forward Auth (APIs bypassed) |
 
 ## Default Credentials
 
@@ -179,26 +179,12 @@ Paperless uses Django's `allauth` for OIDC support.
 
 ### Home Assistant
 
-Home Assistant requires manual configuration for trusted authentication.
+Home Assistant's web user interface is protected via Caddy Forward Authentication backed by Authelia.
 
-**Setup Steps:**
-
-1. Edit Home Assistant's `configuration.yaml`:
-
-```yaml
-homeassistant:
-  auth_providers:
-    - type: trusted_networks
-      trusted_networks:
-        - 127.0.0.1
-        - ::1
-      allow_bypass_login: true
-    - type: homeassistant
-```
-
-2. Restart Home Assistant
-
-**Note:** Forward auth headers are passed, but Home Assistant manages its own user sessions.
+**How it works:**
+- Navigating to `https://homeassistant.homelab.lan` checks the Authelia session and redirects to `https://auth.homelab.lan` if unauthenticated.
+- Once authenticated in Authelia, access is granted.
+- Machine-to-machine paths (`/api/*` and `/auth/token`) are automatically bypassed at Caddy so the Home Assistant Companion mobile app, webhooks, and local integrations continue to function uninterrupted without requiring an Authelia browser session.
 
 ## Secrets Management
 

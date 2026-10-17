@@ -34,8 +34,8 @@ in {
     };
 
     usersFile = mkOption {
-      type = types.path;
-      default = defaultUsersFile;
+      type = types.str;
+      default = "/var/lib/authelia-main/users.yml";
       description = "Path to users.yml file for authentication";
     };
 
@@ -215,9 +215,10 @@ in {
                 client_secret = "$pbkdf2-sha512$310000$uOrqP.ms1t08cqrDAooixg$giuLEFgLzyxZSDRhnNeHmmqKWZkwLWQkLPiN5dsr4Z9SuIshFEfib6UTWIQV15/7qZjj/wlLbfOc7Rinj9C9yQ";
                 public = false;
                 authorization_policy = "one_factor";
-                token_endpoint_auth_method = "client_secret_post";
+                token_endpoint_auth_method = "client_secret_basic";
                 redirect_uris = [
                   "https://nextcloud.${cfg.domain}/apps/oidc_login/oidc"
+                  "https://nextcloud.${cfg.domain}/index.php/apps/oidc_login/oidc"
                 ];
                 scopes = [
                   "openid"
@@ -240,6 +241,8 @@ in {
                   "https://immich.${cfg.domain}/auth/login"
                   "https://immich.${cfg.domain}/user-settings"
                   "app.immich:/"
+                  "app.immich:///oauth-callback"
+                  "https://immich.${cfg.domain}/api/oauth/mobile-redirect"
                 ];
                 scopes = [
                   "openid"
@@ -259,6 +262,7 @@ in {
                 token_endpoint_auth_method = "client_secret_post";
                 redirect_uris = [
                   "https://paperless.${cfg.domain}/accounts/oidc/authelia/callback/"
+                  "https://paperless.${cfg.domain}/accounts/oidc/authelia/login/callback/"
                 ];
                 scopes = [
                   "openid"
@@ -346,6 +350,15 @@ in {
             chmod 600 "${cfg.secrets.oidcIssuerPrivateKeyFile}"
           fi
         ''}
+
+        # Initialize users file from default template if not existing
+        if [ ! -f "${cfg.usersFile}" ]; then
+          echo "Initializing users file from template..."
+          mkdir -p "$(dirname "${cfg.usersFile}")"
+          cp "${defaultUsersFile}" "${cfg.usersFile}"
+          chmod 600 "${cfg.usersFile}"
+          chown authelia-main:authelia-main "${cfg.usersFile}"
+        fi
 
         # Set ownership to authelia user
         chown -R authelia-main:authelia-main "$SECRETS_DIR"

@@ -36,7 +36,7 @@ nix run nixpkgs#yq-go -- eval -i "
   .authentication_backend.file.path = \"$TMP_DIR/users.yml\" |
   .identity_validation.reset_password.jwt_secret = \"mock_jwt_secret_1234567890\" |
   .storage.encryption_key = \"mock_encryption_key_1234567890\" |
-  .identity_providers.oidc.jwks[0].key.path = \"$TMP_DIR/rsa_key.pem\"
+  .identity_providers.oidc.jwks[0].key = load_str(\"$TMP_DIR/rsa_key.pem\")
 " "$TMP_DIR/authelia.yml"
 
 echo -e "${GREEN}✓${NC} Mock secrets added\n"

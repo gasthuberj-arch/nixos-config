@@ -118,9 +118,9 @@ in {
           client_id = "grafana";
           client_secret = "$__file{/persist/secrets/grafana/oidc-client-secret}";
           scopes = "openid profile email groups";
-          auth_url = "https://auth.homelab.lan/api/oidc/authorization";
-          token_url = "http://127.0.0.1:${toString config.homelab.services.authelia.port}/api/oidc/token";
-          api_url = "http://127.0.0.1:${toString config.homelab.services.authelia.port}/api/oidc/userinfo";
+          auth_url = "https://auth.${config.homelab.services.caddy.domain}/api/oidc/authorization";
+          token_url = "https://auth.${config.homelab.services.caddy.domain}/api/oidc/token";
+          api_url = "https://auth.${config.homelab.services.caddy.domain}/api/oidc/userinfo";
           login_attribute_path = "email";
           groups_attribute_path = "groups";
           name_attribute_path = "name";

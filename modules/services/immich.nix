@@ -34,6 +34,14 @@ in {
       default = "/var/lib/immich/upload";
       description = "Path to store uploaded files";
     };
+
+    sso = {
+      enable = mkOption {
+        type = types.bool;
+        default = config.homelab.services.authelia.enable or false;
+        description = "Enable Authelia OIDC SSO for Immich";
+      };
+    };
   };
 
   config = mkIf cfg.enable {
@@ -54,7 +62,24 @@ in {
       machine-learning = {
         enable = true;
       };
+
+      settings = mkIf cfg.sso.enable {
+        server.externalDomain = "https://${cfg.subdomain}.${caddyCfg.domain}";
+        oauth = {
+          enabled = true;
+          autoLaunch = false;
+          autoRegister = true;
+          buttonText = "Login with Authelia";
+          clientId = "immich";
+          clientSecret = "insecure_secret";
+          issuerUrl = "https://auth.${caddyCfg.domain}";
+          scope = "openid profile email";
+        };
+      };
     };
+
+    # Ensure Immich server trusts internal Caddy certificates for OIDC discovery
+    systemd.services.immich-server.environment.NODE_EXTRA_CA_CERTS = "/etc/ssl/certs/ca-certificates.crt";
 
     # Ensure Immich waits for the media location to be mounted
     systemd.services.immich-server.unitConfig.RequiresMountsFor = [cfg.mediaLocation];

@@ -45,6 +45,14 @@ in {
       default = null;
       description = "File containing the admin password (will use default if not set)";
     };
+
+    sso = {
+      enable = mkOption {
+        type = types.bool;
+        default = config.homelab.services.authelia.enable or false;
+        description = "Enable Authelia OIDC SSO for Paperless-ngx";
+      };
+    };
   };
 
   config = mkIf cfg.enable {
@@ -60,19 +68,39 @@ in {
         then cfg.passwordFile
         else null;
 
-      settings = {
-        PAPERLESS_OCR_LANGUAGE = "eng+deu";
-        PAPERLESS_TIME_ZONE = "Europe/Berlin";
-        PAPERLESS_CONSUMER_RECURSIVE = true;
-        PAPERLESS_CONSUMER_SUBDIRS_AS_TAGS = true;
-        PAPERLESS_ALLOWED_HOSTS = "localhost,127.0.0.1,${cfg.subdomain}.${caddyCfg.domain}";
-        PAPERLESS_USE_X_FORWARD_HOST = true;
-        PAPERLESS_USE_X_FORWARD_PORT = true;
-        PAPERLESS_CSRF_TRUSTED_ORIGINS = "https://${cfg.subdomain}.${caddyCfg.domain}";
-        PAPERLESS_URL = "https://${cfg.subdomain}.${caddyCfg.domain}";
-        PAPERLESS_USE_X_FORWARDED_HOST = true;
-        PAPERLESS_USE_X_FORWARDED_PORT = true;
-      };
+      settings =
+        {
+          PAPERLESS_OCR_LANGUAGE = "eng+deu";
+          PAPERLESS_TIME_ZONE = "Europe/Berlin";
+          PAPERLESS_CONSUMER_RECURSIVE = true;
+          PAPERLESS_CONSUMER_SUBDIRS_AS_TAGS = true;
+          PAPERLESS_ALLOWED_HOSTS = "localhost,127.0.0.1,${cfg.subdomain}.${caddyCfg.domain}";
+          PAPERLESS_USE_X_FORWARD_HOST = true;
+          PAPERLESS_USE_X_FORWARD_PORT = true;
+          PAPERLESS_CSRF_TRUSTED_ORIGINS = "https://${cfg.subdomain}.${caddyCfg.domain}";
+          PAPERLESS_URL = "https://${cfg.subdomain}.${caddyCfg.domain}";
+          PAPERLESS_USE_X_FORWARDED_HOST = true;
+          PAPERLESS_USE_X_FORWARDED_PORT = true;
+        }
+        // optionalAttrs cfg.sso.enable {
+          PAPERLESS_APPS = "allauth.socialaccount.providers.openid_connect";
+          PAPERLESS_SOCIALACCOUNT_PROVIDERS = builtins.toJSON {
+            openid_connect = {
+              OAUTH_PKCE_ENABLED = true;
+              APPS = [
+                {
+                  provider_id = "authelia";
+                  name = "Authelia";
+                  client_id = "paperless";
+                  secret = "insecure_secret";
+                  settings = {
+                    server_url = "https://auth.${caddyCfg.domain}";
+                  };
+                }
+              ];
+            };
+          };
+        };
     };
 
     # Ensure directories exist and have correct permissions

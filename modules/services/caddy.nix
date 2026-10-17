@@ -94,6 +94,11 @@ with lib; let
       <div class="card">
         <h1>🚀 Homelab Status</h1>
         <ul>${serviceListHtml}</ul>
+        <div style="margin-top: 1.5rem; text-align: center; border-top: 1px solid var(--hover); padding-top: 1rem;">
+          <a href="/root.crt" download style="display: inline-flex; justify-content: center; font-size: 0.85rem; color: var(--subtext);">
+            🔒 Download Root CA Certificate
+          </a>
+        </div>
       </div>
       <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -164,6 +169,10 @@ in {
         "${cfg.domain}" = {
           extraConfig = ''
             tls internal
+            handle /root.crt {
+              root * /var/lib/caddy/data/caddy/pki/authorities/local
+              file_server
+            }
             root * ${dashboardPkg}
             file_server
           '';
@@ -172,6 +181,10 @@ in {
         "https://:443" = {
           extraConfig = ''
             tls internal
+            handle /root.crt {
+              root * /var/lib/caddy/data/caddy/pki/authorities/local
+              file_server
+            }
             root * ${dashboardPkg}
             file_server
           '';
@@ -179,6 +192,10 @@ in {
 
         "http://:80" = {
           extraConfig = ''
+            handle /root.crt {
+              root * /var/lib/caddy/data/caddy/pki/authorities/local
+              file_server
+            }
             root * ${dashboardPkg}
             file_server
           '';

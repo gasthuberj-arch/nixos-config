@@ -209,10 +209,21 @@
       };
     };
 
-    # Headscale coordination server for Tailscale
+    # Headscale coordination server for Tailscale (disabled in favor of Tailscale SaaS)
     headscale = {
-      enable = true;
+      enable = false;
       port = 8085;
+    };
+  };
+
+  # Lightweight DNS responder for Tailscale Split DNS (*.homelab.lan)
+  services.dnsmasq = {
+    enable = true;
+    settings = {
+      interface = "tailscale0";
+      bind-dynamic = true;
+      no-hosts = true;
+      address = "/homelab.lan/100.98.72.36";
     };
   };
 

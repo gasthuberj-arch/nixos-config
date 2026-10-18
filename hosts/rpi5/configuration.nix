@@ -20,13 +20,31 @@
   # Mesh VPN
   services.tailscale.enable = true;
 
-  # Moonlight client & game controller support for living room streaming
+  # Hardware acceleration, bluetooth & audio
+  hardware.enableRedistributableFirmware = true;
+  hardware.graphics.enable = true;
+  hardware.bluetooth = {
+    enable = true;
+    powerOnBoot = true;
+  };
+
+  # Sound with PipeWire
+  security.rtkit.enable = true;
+  services.pipewire = {
+    enable = true;
+    alsa.enable = true;
+    pulse.enable = true;
+  };
+
+  # Standalone emulators, frontend & Moonlight client
   environment.systemPackages = with pkgs; [
+    retroarch
+    dolphin-emu
+    ppsspp
+    pegasus-frontend
     moonlight-qt
   ];
   services.udev.packages = [pkgs.game-devices-udev-rules];
-
-  hardware.enableRedistributableFirmware = true;
 
   system.stateVersion = "25.11";
 }

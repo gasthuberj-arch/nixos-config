@@ -126,7 +126,7 @@ in {
       extraConfig = ''
         tls internal
         reverse_proxy localhost:${toString cfg.port} {
-          header_down -Cross-Origin-Resource-Policy
+          header_down Cross-Origin-Resource-Policy "same-site"
         }
       '';
     };

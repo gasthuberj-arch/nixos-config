@@ -522,6 +522,7 @@ in {
       settings = {
         "dom.events.asyncClipboard.clipboardItem" = true;
         "dom.events.testing.asyncClipboard.enabled" = true;
+        "security.enterprise_roots.enabled" = true;
       };
     };
   };

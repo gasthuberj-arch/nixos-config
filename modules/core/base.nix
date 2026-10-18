@@ -78,4 +78,27 @@
     pciutils
     usbutils
   ];
+
+  # Trust Homelab Local CA across all hosts
+  security.pki.certificates = [
+    ''
+      -----BEGIN CERTIFICATE-----
+      MIIBozCCAUmgAwIBAgIQODPWEKfKrKphOMGSIvPX0jAKBggqhkjOPQQDAjAwMS4w
+      LAYDVQQDEyVDYWRkeSBMb2NhbCBBdXRob3JpdHkgLSAyMDI1IEVDQyBSb290MB4X
+      DTI1MTIyMzA5MjUyNloXDTM1MTEwMTA5MjUyNlowMDEuMCwGA1UEAxMlQ2FkZHkg
+      TG9jYWwgQXV0aG9yaXR5IC0gMjAyNSBFQ0MgUm9vdDBZMBMGByqGSM49AgEGCCqG
+      SM49AwEHA0IABINWBJASLt8rbnmtpEwum16cOKU7m/0AUffurkJ36N6js9njlrkV
+      dO8zxFN0lXqUtEI0R8V1v0fZiCtkF63tWsmjRTBDMA4GA1UdDwEB/wQEAwIBBjAS
+      BgNVHRMBAf8ECDAGAQH/AgEBMB0GA1UdDgQWBBTgLWbiW11Ka4XFKZwlq2jLBmJu
+      qjAKBggqhkjOPQQDAgNIADBFAiB3V8qju8RjyDvcdpAtXcKnlvQvVSMzAD6tteGW
+      vDJ5UwIhAILNZDGy5qF9GVs9EQBXIR8bNJNhtfH11v7M2Q8CHxCq
+      -----END CERTIFICATE-----
+    ''
+  ];
+
+  # Ensure Node.js and system tools trust the system CA bundle
+  environment.variables = {
+    NODE_EXTRA_CA_CERTS = "/etc/ssl/certs/ca-certificates.crt";
+    SSL_CERT_FILE = "/etc/ssl/certs/ca-certificates.crt";
+  };
 }

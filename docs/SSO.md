@@ -28,6 +28,7 @@ User → Caddy (Reverse Proxy) → Service
 | Nextcloud | OIDC | ✅ Full | Via oidc_login app |
 | Immich | OIDC | ✅ Full | Native OAuth support |
 | Paperless | OIDC | ✅ Full | Via django-allauth |
+| Vaultwarden | OIDC | ✅ Full | Native OIDC SSO support |
 | Home Assistant | Forward Auth | ✅ Full | Protected via Caddy Forward Auth (APIs bypassed) |
 
 ## Default Credentials

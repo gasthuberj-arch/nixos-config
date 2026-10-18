@@ -291,6 +291,31 @@ in {
                 ];
                 userinfo_signed_response_alg = "none";
               }
+
+              # Vaultwarden OIDC client
+              {
+                client_id = "vaultwarden";
+                client_name = "Vaultwarden";
+                client_secret = "$pbkdf2-sha512$310000$uOrqP.ms1t08cqrDAooixg$giuLEFgLzyxZSDRhnNeHmmqKWZkwLWQkLPiN5dsr4Z9SuIshFEfib6UTWIQV15/7qZjj/wlLbfOc7Rinj9C9yQ";
+                public = false;
+                authorization_policy = "one_factor";
+                token_endpoint_auth_method = "client_secret_basic";
+                redirect_uris = [
+                  "https://vaultwarden.${cfg.domain}/identity/connect/oidc-signin"
+                ];
+                scopes = [
+                  "openid"
+                  "profile"
+                  "email"
+                  "offline_access"
+                ];
+                response_types = ["code"];
+                grant_types = [
+                  "authorization_code"
+                  "refresh_token"
+                ];
+                userinfo_signed_response_alg = "none";
+              }
             ];
           };
         };

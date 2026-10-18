@@ -49,6 +49,7 @@ Try accessing your services - they'll now redirect to Authelia:
 - https://nextcloud.homelab.lan - Click "Log in with Authelia"
 - https://immich.homelab.lan - Click "Login with Authelia"
 - https://paperless.homelab.lan - Click "Sign in with Authelia"
+- https://vaultwarden.homelab.lan - Click "Single Sign-On"
 
 ## Service Access Matrix
 
@@ -59,6 +60,7 @@ Try accessing your services - they'll now redirect to Authelia:
 | Nextcloud | https://nextcloud.homelab.lan | OIDC | ✅ Yes |
 | Immich | https://immich.homelab.lan | OIDC | ✅ Yes |
 | Paperless | https://paperless.homelab.lan | OIDC | ✅ Yes |
+| Vaultwarden | https://vaultwarden.homelab.lan | OIDC | ✅ Yes |
 | Home Assistant | https://homeassistant.homelab.lan | Forward Auth | N/A (SSO Protected) |
 
 ## Common Tasks

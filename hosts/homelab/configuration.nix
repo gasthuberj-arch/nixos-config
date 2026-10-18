@@ -28,6 +28,7 @@
     ../../modules/services/grafana.nix
     ../../modules/services/gaming.nix
     ../../modules/services/obsidian-sync.nix
+    ../../modules/services/vaultwarden.nix
     ../../modules/services/hdd-spindown.nix
     ../../modules/services/gpu-power.nix
   ];
@@ -112,6 +113,7 @@
       "homeassistant.homelab.lan"
       "grafana.homelab.lan"
       "obsidian.homelab.lan"
+      "vaultwarden.homelab.lan"
       "headscale.homelab.lan"
     ];
   };
@@ -154,6 +156,11 @@
     obsidian-sync = {
       enable = true;
       port = 5984;
+    };
+
+    # Vaultwarden password manager
+    vaultwarden = {
+      enable = true;
     };
 
     # Automatic HDD Spindown for SATA RAIDZ1 cold storage

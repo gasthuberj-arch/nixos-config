@@ -43,6 +43,11 @@ with lib; let
       subdomain = "obsidian";
       enable = config.homelab.services.obsidian-sync.enable or false;
     }
+    {
+      name = "Vaultwarden";
+      subdomain = "vaultwarden";
+      enable = config.homelab.services.vaultwarden.enable or false;
+    }
   ];
 
   enabledServices = builtins.filter (s: s.enable) myServices;

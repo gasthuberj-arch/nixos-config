@@ -17,6 +17,7 @@ _: {
       "/var/lib/prometheus2"
       "/var/lib/loki"
       "/var/lib/couchdb"
+      "/var/lib/vaultwarden"
       "/var/lib/postgresql"
       "/var/lib/redis-immich"
       "/var/lib/redis-paperless"

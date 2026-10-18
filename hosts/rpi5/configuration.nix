@@ -1,4 +1,8 @@
-{nixos-raspberrypi, ...}: {
+{
+  nixos-raspberrypi,
+  pkgs,
+  ...
+}: {
   imports = [
     # Universal baseline
     ../../modules/core/base.nix
@@ -15,6 +19,12 @@
 
   # Mesh VPN
   services.tailscale.enable = true;
+
+  # Moonlight client & game controller support for living room streaming
+  environment.systemPackages = with pkgs; [
+    moonlight-qt
+  ];
+  services.udev.packages = [pkgs.game-devices-udev-rules];
 
   hardware.enableRedistributableFirmware = true;
 

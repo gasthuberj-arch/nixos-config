@@ -125,7 +125,9 @@ in {
     services.caddy.virtualHosts."${cfg.subdomain}.${caddyCfg.domain}" = mkIf caddyCfg.enable {
       extraConfig = ''
         tls internal
-        reverse_proxy localhost:${toString cfg.port}
+        reverse_proxy localhost:${toString cfg.port} {
+          header_down -Cross-Origin-Resource-Policy
+        }
       '';
     };
   };

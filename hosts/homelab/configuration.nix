@@ -219,6 +219,7 @@
         cemu = true;
         ryubing = true;
         ppsspp = true;
+        pegasus = true;
       };
     };
   };

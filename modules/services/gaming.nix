@@ -52,6 +52,7 @@ in {
       cemu = (mkEmulator "cemu" "Wii U emulator").value;
       ryubing = (mkEmulator "ryubing" "Switch emulator (Ryubing)").value;
       ppsspp = (mkEmulator "ppsspp" "PSP emulator").value;
+      pegasus = (mkEmulator "pegasus" "Unified retro frontend (Pegasus)").value;
 
       duckstation = mkOption {
         type = types.bool;
@@ -140,6 +141,7 @@ in {
         ++ (optional cfg.emulators.cemu cemu)
         ++ (optional cfg.emulators.ryubing ryubing)
         ++ (optional cfg.emulators.ppsspp ppsspp-qt)
+        ++ (optional cfg.emulators.pegasus pegasus-frontend)
       ));
 
     # --- Steam & Compatibility ---

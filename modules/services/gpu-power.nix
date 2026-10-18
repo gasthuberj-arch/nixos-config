@@ -71,9 +71,10 @@ in {
         # Known gaming and emulator process patterns
         KNOWN_TARGETS=(
           retroarch dolphin-emu pcsx2 pcsx2-qt rpcs3 duckstation cemu
-          Ryujinx ryubing ppsspp ppsspp-qt steam steamwebhelper
-          gamescope heroic legendary gogdl wine wine64 wineserver
-          wine-preloader wine64-preloader Proton mangohud gamemoded
+          Ryujinx ryubing ppsspp ppsspp-qt pegasus-frontend pegasus-fe
+          steam steamwebhelper gamescope heroic legendary gogdl wine
+          wine64 wineserver wine-preloader wine64-preloader Proton
+          mangohud gamemoded
         )
 
         SYSTEM_WHITELIST="^(systemd.*|systemd-logind|gnome-shell|mutter.*|Xwayland|ibus.*|dbus.*|colord|gdm.*|btop|amdgpu_top|bash|sudo|sh|lsof|fuser|kill-gpu-tasks|spindown-gpu|spinup-gpu|check-gpu-power|grep|sed|awk|find|cat|cut|sort)$"

@@ -12,7 +12,7 @@ fi
 
 DEFAULT_IP=""
 case "$HOST" in
-  homelab) DEFAULT_IP="192.168.1.101" ;;
+  homelab) DEFAULT_IP="100.98.72.36" ;;
   rpi5)    DEFAULT_IP="192.168.1.128" ;;
   orin)    DEFAULT_IP="orin.lan" ;;
   *)       DEFAULT_IP="${HOST}.lan" ;;
@@ -124,7 +124,7 @@ CMD=(
     --flake ".#${HOST}"
     --target-host "$TARGET_DEST"
     --build-host "$TARGET_DEST"
-    --use-remote-sudo
+    --sudo
     --accept-flake-config
     "${EXTRA_ARGS[@]}"
 )

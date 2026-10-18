@@ -23,6 +23,7 @@ _: {
       "/var/lib/redis-paperless"
       "/var/lib/redis-nextcloud"
       "/var/lib/sunshine"
+      "/var/lib/gatus"
     ];
     files = [
       "/etc/machine-id"

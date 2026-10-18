@@ -48,6 +48,11 @@ with lib; let
       subdomain = "vaultwarden";
       enable = config.homelab.services.vaultwarden.enable or false;
     }
+    {
+      name = "Status";
+      subdomain = config.homelab.services.gatus.subdomain or "status";
+      enable = config.homelab.services.gatus.enable or false;
+    }
   ];
 
   enabledServices = builtins.filter (s: s.enable) myServices;

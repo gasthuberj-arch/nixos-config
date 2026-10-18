@@ -29,6 +29,7 @@
     ../../modules/services/gaming.nix
     ../../modules/services/obsidian-sync.nix
     ../../modules/services/vaultwarden.nix
+    ../../modules/services/gatus.nix
     ../../modules/services/hdd-spindown.nix
     ../../modules/services/gpu-power.nix
   ];
@@ -115,6 +116,7 @@
       "obsidian.homelab.lan"
       "vaultwarden.homelab.lan"
       "headscale.homelab.lan"
+      "status.homelab.lan"
     ];
   };
 
@@ -161,6 +163,13 @@
     # Vaultwarden password manager
     vaultwarden = {
       enable = true;
+    };
+
+    # Gatus declarative service health dashboard
+    gatus = {
+      enable = true;
+      port = 3001;
+      subdomain = "status";
     };
 
     # Automatic HDD Spindown for SATA RAIDZ1 cold storage

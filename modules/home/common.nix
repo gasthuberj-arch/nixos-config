@@ -101,6 +101,78 @@
     '';
   };
 
+  # A closed lid leaves the built-in panel connected, so Hyprland keeps
+  # workspaces on it while it's dark. Disabling it moves them to the external
+  # monitors.
+  lidMonitor = pkgs.writeShellApplication {
+    name = "lid-monitor";
+    runtimeInputs = with pkgs; [coreutils gnugrep hyprland jq util-linux];
+    text = ''
+      # systemd-sleep freezes user.slice, so a run started by the lid closing can
+      # resume after the lid-open run. Serialized, the last run reads fresh state.
+      exec 9>"$XDG_RUNTIME_DIR/lid-monitor.lock"
+      flock 9
+
+      monitors=$(hyprctl monitors all -j)
+      # Found by connector type, not a hardcoded name: personal-laptop's panel
+      # name is unchecked. DRM names built-in panels eDP, LVDS or DSI.
+      panel=$(jq -r 'first(.[] | select(.name | test("^(eDP|LVDS|DSI)-")) | .name) // empty' <<<"$monitors")
+      [ -n "$panel" ] || exit 0
+      panel_disabled=$(jq -r --arg p "$panel" '.[] | select(.name == $p) | .disabled' <<<"$monitors")
+
+      # Never disable the only screen. Hyprland's stand-in output when nothing
+      # is enabled (FALLBACK / HEADLESS-*) doesn't count as one.
+      others=$(jq --arg p "$panel" '[.[] | select(.disabled | not)
+                        | select(.name != $p)
+                        | select(.name | test("^(FALLBACK|HEADLESS)") | not)] | length' <<<"$monitors")
+
+      lid=open
+      grep -qs closed /proc/acpi/button/lid/*/state && lid=closed
+      logger -t lid-monitor "lid=$lid panel=$panel disabled=$panel_disabled others=$others"
+
+      # Read the lid rather than trusting which switch event fired: the events
+      # alone left the panel off after resume, with no external monitor attached.
+      if [ "$lid" = closed ] && [ "$others" -gt 0 ]; then
+        [ "$panel_disabled" = true ] || hyprctl keyword monitor "$panel,disable"
+      else
+        if [ "$panel_disabled" = true ]; then
+          if [ "$others" -gt 0 ]; then
+            hyprctl keyword monitor "$panel,preferred,auto,1" | logger -t lid-monitor
+          else
+            # With no output enabled, this keyword returns "ok" and changes
+            # nothing (reproduced on Hyprland here). A reload re-applies the
+            # config's catch-all monitor rule, which does turn the panel on.
+            hyprctl reload | logger -t lid-monitor
+          fi
+          sleep 1
+          logger -t lid-monitor "after enable: $(hyprctl monitors all -j | jq -c --arg p "$panel" '.[] | select(.name == $p) | {disabled}')"
+        fi
+      fi
+    '';
+  };
+
+  # Unplugging the hub with the lid closed removes the external monitors while
+  # the panel is off, and no lid event follows. Seen on this laptop: logind
+  # then suspends, and after resume the panel stayed dark until the hub came
+  # back. Re-checking on every monitor change turns it back on before suspend.
+  lidMonitorWatch = pkgs.writeShellApplication {
+    name = "lid-monitor-watch";
+    runtimeInputs = with pkgs; [coreutils socat];
+    text = ''
+      # Same retry shape as dunst-follow-focus: exec-once doesn't restart it.
+      while :; do
+        ${lib.getExe lidMonitor} || true
+        socat -U - "UNIX-CONNECT:$XDG_RUNTIME_DIR/hypr/''${HYPRLAND_INSTANCE_SIGNATURE:-}/.socket2.sock" 2>/dev/null |
+          while IFS= read -r line; do
+            case "$line" in
+              monitoradded*|monitorremoved*) ${lib.getExe lidMonitor} || true ;;
+            esac
+          done || true
+        sleep 5
+      done
+    '';
+  };
+
   brightnessNotify = pkgs.writeShellApplication {
     name = "brightness-notify";
     runtimeInputs = with pkgs; [brightnessctl coreutils dunst];
@@ -556,6 +628,7 @@ in {
         # Launching it here as well raced that activation each boot, and the
         # loser exited 1, leaving either a failed unit or an unsupervised dunst.
         (lib.getExe dunstFollowFocus)
+        (lib.getExe lidMonitorWatch)
         "nm-applet --indicator"
         "wl-paste --type text --watch cliphist store"
         "wl-paste --type image --watch cliphist store"
@@ -691,11 +764,9 @@ in {
         ", XF86AudioMute, exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
         ", XF86AudioMicMute, exec, wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"
 
-        # A closed lid doesn't disconnect eDP-1, so Hyprland kept workspaces on
-        # the invisible panel. Disabling it migrates them to external monitors.
-        # Undocked, logind suspends on lid close before this matters.
-        ", switch:on:Lid Switch, exec, hyprctl keyword monitor 'eDP-1,disable'"
-        ", switch:off:Lid Switch, exec, hyprctl keyword monitor 'eDP-1,preferred,auto,1'"
+        # Both edges run the same script because it ignores which edge fired.
+        ", switch:on:Lid Switch, exec, ${lib.getExe lidMonitor}"
+        ", switch:off:Lid Switch, exec, ${lib.getExe lidMonitor}"
       ];
 
       bindm = [

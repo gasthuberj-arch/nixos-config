@@ -45,7 +45,7 @@
     };
 
     dealscout = {
-      url = "github:gasthuberj-arch/deal_scout";
+      url = "github:gasthuberj-arch/deal_scout/master";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };

@@ -276,6 +276,15 @@
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPQqC5ARFNlBdg57mKQfe8K30sWVE2UO+ytPiyeL0DCi johannes@tab-s7"
   ];
 
+  # --- DealScout Real-Time SQLite Backup ---
+  services.dealscout-backup = {
+    enable = true;
+    serverUrl = "wss://deal-scout.fly.dev";
+    tokenFile = "/persist/secrets/dealscout/backup-token";
+    backupDir = "/backups/dealscout";
+    verifyIntervalHours = 24;
+  };
+
   # State version
   system.stateVersion = "24.11";
 }

@@ -43,6 +43,11 @@
       url = "github:anduril/jetpack-nixos";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    dealscout = {
+      url = "github:gasthuberj-arch/deal_scout";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = {
@@ -113,6 +118,9 @@
 
           # Secrets management
           sops-nix.nixosModules.sops
+
+          # DealScout NAS Backup
+          inputs.dealscout.nixosModules.backup
 
           # Host-specific configuration
           ./hosts/homelab/configuration.nix

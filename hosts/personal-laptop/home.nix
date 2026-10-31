@@ -13,6 +13,7 @@
 
   home.packages = with pkgs; [
     moonlight-qt
+    signal-desktop
   ];
 
   programs.zsh.shellAliases.rebuild = "sudo nixos-rebuild switch --flake /home/johannes/config/nixos-config#personal-laptop";

@@ -40,6 +40,14 @@
   # (without it, cut/paste and the trash can silently no-op).
   services.gvfs.enable = true;
 
+  # fstrim.timer is Persistent, so a missed run fires on resume; if the lid
+  # closes again mid-trim, the suspend freeze aborts btrfs FITRIM with
+  # ERESTARTSYS ("Unknown error 512") and the unit fails. Retry instead.
+  systemd.services.fstrim.serviceConfig = {
+    Restart = "on-failure";
+    RestartSec = "10min";
+  };
+
   # Bootloader: systemd-boot with portable fallback executable
   boot.loader.systemd-boot.enable = true;
   boot.loader.systemd-boot.extraInstallCommands = ''

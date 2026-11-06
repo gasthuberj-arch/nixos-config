@@ -236,6 +236,7 @@
       orin-nx-flash = self.nixosConfigurations.orin-nx.config.system.build.flashScript;
       antigravity = pkgs.callPackage ./pkgs/antigravity.nix {};
       agy = self.packages.x86_64-linux.antigravity;
+      google-colab-cli = pkgs.callPackage ./pkgs/google-colab-cli.nix {};
     };
   };
 }

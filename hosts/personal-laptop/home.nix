@@ -1,6 +1,7 @@
 {
   lib,
   pkgs,
+  self,
   ...
 }: {
   imports = [
@@ -12,6 +13,7 @@
   home.stateVersion = "25.11";
 
   home.packages = with pkgs; [
+    self.packages.${pkgs.stdenv.hostPlatform.system}.google-colab-cli
     moonlight-qt
     signal-desktop
   ];

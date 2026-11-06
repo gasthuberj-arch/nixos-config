@@ -65,6 +65,15 @@
   };
   networking.firewall.trustedInterfaces = ["tailscale0"];
 
+  # Secondary 2TB NVMe storage (/data) auto-unlock and ownership
+  environment.etc."crypttab".text = ''
+    crypted-data /dev/disk/by-id/nvme-WD_BLACK_SN7100_2TB_25516P802787-part1 /etc/cryptkey.d/data.key discard
+  '';
+
+  systemd.tmpfiles.rules = [
+    "d /data 0755 johannes users -"
+  ];
+
   # System state version
   system.stateVersion = "25.11";
 }

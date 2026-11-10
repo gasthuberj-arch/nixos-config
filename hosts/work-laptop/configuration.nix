@@ -20,8 +20,13 @@
   ];
 
   # Disable Intel Wi-Fi firmware power-saving scheme (1=active) to eliminate latency jitter
+  # cfg80211 regdom=DE: without it the regdom resets to WORLD on every
+  # disconnect and flips to DE (from the AP's country IE) mid-handshake. Suspected
+  # cause of the MT7925 4-way-handshake timeouts (reason=15) against the Fritz
+  # 5690 Pro.
   boot.extraModprobeConfig = ''
     options iwlmvm power_scheme=1
+    options cfg80211 ieee80211_regdom=DE
   '';
 
   # Hardware & Firmware support for modern notebooks

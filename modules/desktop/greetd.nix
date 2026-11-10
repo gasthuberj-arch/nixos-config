@@ -8,7 +8,11 @@
     enable = true;
     settings = {
       default_session = {
-        command = "${pkgs.tuigreet}/bin/tuigreet --time --remember --remember-user-session --cmd '${lib.getExe config.programs.uwsm.package} start hyprland-uwsm.desktop'";
+        # No --remember-user-session: a remembered menu pick (e.g. plain
+        # "Hyprland") silently overrides --cmd, so the session skips UWSM,
+        # graphical-session.target never starts, and units hanging off it
+        # (intune-agent.timer -> Intune compliance check-in) never run.
+        command = "${pkgs.tuigreet}/bin/tuigreet --time --remember --cmd '${lib.getExe config.programs.uwsm.package} start hyprland-uwsm.desktop'";
         user = "greeter";
       };
     };

@@ -457,6 +457,19 @@ in {
   # their versions, which is why in-app updates are switched off below.
   programs.vscode = {
     enable = true;
+    # VS Code 1.144 moved its bundled ripgrep to @vscode/ripgrep-universal, but
+    # nixpkgs generic.nix still `rm`s the old path, so postPatch fails. Rewrite
+    # the path in place. Delete once nixpkgs catches up (the warning fires then).
+    package = let
+      oldRg = "resources/app/node_modules/@vscode/ripgrep/bin/rg";
+      newRg = "resources/app/node_modules/@vscode/ripgrep-universal/bin/linux-x64/rg";
+    in
+      pkgs.vscode.overrideAttrs (old: {
+        postPatch =
+          lib.warnIfNot (lib.hasInfix oldRg old.postPatch)
+          "vscode ripgrep override in modules/home/common.nix no longer matches nixpkgs; remove it"
+          (builtins.replaceStrings [oldRg] [newRg] old.postPatch);
+      });
     profiles.default.extensions = with pkgs.vscode-extensions; [
       vscodevim.vim
       github.vscode-pull-request-github # review + comment on PRs inline

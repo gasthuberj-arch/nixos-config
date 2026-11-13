@@ -7,10 +7,10 @@
 #   sops updatekeys secrets/*.yaml
 
 keys:
-  - &admin age1adminplaceholderreplacewithoperatoragekey0000000000000000000000
-  - &homelab age1homelabplaceholderreplacewithssh2agekey000000000000000000000
+  - &admin age1n8a6a0xwzuudnx9nupze3r0rxnv0vgs8h0t7zpfyeaqzp047d50s8r9cz3
+  - &homelab age1d6j00vdt0lfa0rmqtxd7snsy2p8ufc4nz03v9c8dg7k2cz4t7dnqc0kst4
   - &work_laptop age1worklaptopplaceholderreplacewithssh2agekey0000000000000000
-  - &personal_laptop age1personallaptopplaceholderreplacewithssh2agekey0000000000
+  - &personal_laptop age1tkup4sx5h3dl5x4yyx8lcry9ny8zelq273zcmdnv0yp6g5e03vgq2g9fh3
   - &rpi5 age1rpi5placeholderreplacewithssh2agekey000000000000000000000000
   - &orin_nx age1orinnxplaceholderreplacewithssh2agekey000000000000000000000
 

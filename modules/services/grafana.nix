@@ -433,7 +433,8 @@ in {
     });
 
     systemd.services.alloy.serviceConfig = mkIf (cfg.hardening.enable && cfg.loki.enable) (mkHardenedService {
-      inherit (cfg.hardening) allowJit;
+      # Alloy uses wasilibs/go-re2 via wazero's wazevo JIT compiler (mmapExecutable)
+      allowJit = true;
     });
 
     # Self-register in Caddy reverse proxy

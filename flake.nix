@@ -43,6 +43,11 @@
       url = "github:anduril/jetpack-nixos";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    microvm = {
+      url = "github:microvm-nix/microvm.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = {
@@ -73,6 +78,16 @@
         allowUnfree = true;
         allowUnfreePredicate = _: true;
       };
+    };
+
+    # Ephemeral agent microVM in interactive sandbox mode (no job share, no network)
+    agentSandbox = nixpkgs.lib.nixosSystem {
+      inherit system;
+      specialArgs = {inherit inputs;};
+      modules = [
+        inputs.microvm.nixosModules.microvm
+        ./modules/microvms/agent-worker.nix
+      ];
     };
   in {
     # Pre-commit & CI quality checks
@@ -228,6 +243,10 @@
       antigravity = pkgs.callPackage ./pkgs/antigravity.nix {};
       agy = self.packages.x86_64-linux.antigravity;
       google-colab-cli = pkgs.callPackage ./pkgs/google-colab-cli.nix {};
+      agent-vm-sandbox = pkgs.callPackage ./pkgs/agent-vm-sandbox.nix {
+        microvmRunner = agentSandbox.config.microvm.declaredRunner;
+        inherit (agentSandbox.config.networking) hostName;
+      };
     };
   };
 }

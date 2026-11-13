@@ -2,6 +2,8 @@
   config,
   lib,
   pkgs-unstable,
+  mkHardenedService,
+  mkHardeningOptions,
   ...
 }:
 with lib; let
@@ -41,6 +43,11 @@ in {
         default = config.homelab.services.authelia.enable or false;
         description = "Enable Authelia forward authentication for Home Assistant web UI";
       };
+    };
+
+    hardening = mkHardeningOptions {
+      service = "Home Assistant";
+      defaultAllowJit = true;
     };
   };
 
@@ -84,6 +91,15 @@ in {
       };
     };
 
+    # Register persistent state directory
+    homelab.persistence.directories = [cfg.dataDir];
+
+    # Systemd confinement
+    systemd.services.home-assistant.serviceConfig = mkIf cfg.hardening.enable (mkHardenedService {
+      inherit (cfg.hardening) allowJit;
+      readWritePaths = [cfg.dataDir];
+    });
+
     # Open firewall if requested
     networking.firewall.allowedTCPPorts = mkIf cfg.openFirewall [cfg.port];
 
@@ -101,7 +117,7 @@ in {
             copy_headers Remote-User Remote-Groups Remote-Name Remote-Email
           }
         ''}
-        reverse_proxy localhost:${toString cfg.port}
+        reverse_proxy 127.0.0.1:${toString cfg.port}
       '';
     };
   };

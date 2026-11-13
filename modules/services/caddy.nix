@@ -2,6 +2,8 @@
   config,
   lib,
   pkgs,
+  mkHardenedService,
+  mkHardeningOptions,
   ...
 }:
 with lib; let
@@ -146,6 +148,8 @@ in {
       default = "";
       description = "Email for Let's Encrypt certificates";
     };
+
+    hardening = mkHardeningOptions {service = "Caddy";};
   };
 
   config = mkIf cfg.enable {
@@ -154,8 +158,8 @@ in {
 
       # Global settings
       globalConfig = ''
-        # Admin API endpoint for validation
-        admin :2019
+        # Admin API endpoint for validation (loopback only)
+        admin 127.0.0.1:2019
 
         # Explicit storage path for certificates
         storage file_system {
@@ -239,5 +243,14 @@ in {
     systemd.tmpfiles.rules = [
       "d /var/lib/caddy 0750 caddy caddy -"
     ];
+
+    # Register persistent state directory
+    homelab.persistence.directories = ["/var/lib/caddy"];
+
+    # Systemd confinement
+    systemd.services.caddy.serviceConfig = mkIf cfg.hardening.enable (mkHardenedService {
+      inherit (cfg.hardening) allowJit;
+      readWritePaths = ["/var/lib/caddy" "/var/log/caddy"];
+    });
   };
 }

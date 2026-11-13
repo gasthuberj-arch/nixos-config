@@ -1,7 +1,8 @@
 {pkgs, ...}: {
   imports = [
-    # Universal baseline
+    # Universal baseline & server profile
     ../../modules/core/base.nix
+    ../../modules/profiles/server.nix
   ];
 
   nixpkgs.overlays = [
@@ -128,6 +129,9 @@
       '';
     };
   };
+
+  # Per-host SOPS secrets
+  sops.defaultSopsFile = ../../secrets/orin-nx.yaml;
 
   system.stateVersion = "24.11";
 }

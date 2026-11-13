@@ -2,6 +2,8 @@
   config,
   lib,
   pkgs,
+  mkHardenedService,
+  mkHardeningOptions,
   ...
 }:
 with lib; let
@@ -35,9 +37,9 @@ in {
     };
 
     adminPasswordFile = mkOption {
-      type = types.nullOr types.path;
-      default = null;
-      description = "File containing the admin password";
+      type = types.path;
+      default = "/persist/secrets/nextcloud/admin-password";
+      description = "Runtime file containing the Nextcloud admin password";
     };
 
     sso = {
@@ -46,6 +48,11 @@ in {
         default = config.homelab.services.authelia.enable or false;
         description = "Enable Authelia OIDC SSO for Nextcloud";
       };
+    };
+
+    hardening = mkHardeningOptions {
+      service = "Nextcloud PHP-FPM";
+      defaultAllowJit = true;
     };
   };
 
@@ -71,10 +78,7 @@ in {
         # Admin account
         config = {
           adminuser = cfg.adminUser;
-          adminpassFile =
-            if cfg.adminPasswordFile != null
-            then cfg.adminPasswordFile
-            else toString (pkgs.writeText "nextcloud-admin-pass" "changeme");
+          adminpassFile = toString cfg.adminPasswordFile;
 
           dbtype = "pgsql";
           dbhost = "/run/postgresql";
@@ -150,7 +154,40 @@ in {
         "d ${cfg.dataDir}/config 0750 nextcloud nextcloud -"
         "d ${cfg.dataDir}/data 0750 nextcloud nextcloud -"
         "Z ${cfg.dataDir} 0750 nextcloud nextcloud -"
+        "d ${builtins.dirOf (toString cfg.adminPasswordFile)} 0700 nextcloud nextcloud -"
       ];
+
+      # Register persistent state directories and runtime secret paths
+      homelab.persistence.directories = [
+        cfg.dataDir
+        "/var/lib/postgresql"
+        "/var/lib/redis-nextcloud"
+      ];
+      homelab.hardening.secretPaths = [(toString cfg.adminPasswordFile)];
+
+      # Generate Nextcloud admin password at runtime if missing
+      systemd.services.nextcloud-generate-secrets = {
+        description = "Generate Nextcloud admin password file if missing";
+        wantedBy = ["multi-user.target"];
+        before = ["nextcloud-setup.service" "phpfpm-nextcloud.service"];
+        script = ''
+          PASS_FILE="${toString cfg.adminPasswordFile}"
+          SECRETS_DIR="$(dirname "$PASS_FILE")"
+          mkdir -p "$SECRETS_DIR"
+          chmod 700 "$SECRETS_DIR"
+          if [ ! -f "$PASS_FILE" ]; then
+            ${pkgs.openssl}/bin/openssl rand -base64 32 > "$PASS_FILE"
+            chmod 600 "$PASS_FILE"
+          fi
+          if id nextcloud &>/dev/null; then
+            chown -R nextcloud:nextcloud "$SECRETS_DIR"
+          fi
+        '';
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+        };
+      };
 
       # Fix permissions on existing directories before services start
       systemd.services.nextcloud-fix-permissions = {
@@ -176,18 +213,24 @@ in {
 
       # Ensure nextcloud-setup refreshes declarative override.config.php symlink before running migrations
       systemd.services.nextcloud-setup = {
-        wants = ["nextcloud-fix-permissions.service"];
-        after = ["nextcloud-fix-permissions.service"];
+        wants = ["nextcloud-fix-permissions.service" "nextcloud-generate-secrets.service"];
+        after = ["nextcloud-fix-permissions.service" "nextcloud-generate-secrets.service"];
         preStart = ''
           ${pkgs.systemd}/bin/systemd-tmpfiles --create --prefix=${cfg.dataDir}/config
         '';
       };
 
+      # Systemd confinement
+      systemd.services.phpfpm-nextcloud.serviceConfig = mkIf cfg.hardening.enable (mkHardenedService {
+        inherit (cfg.hardening) allowJit;
+        readWritePaths = [cfg.dataDir (builtins.dirOf (toString cfg.adminPasswordFile))];
+      });
+
       # Self-register in Caddy reverse proxy
       services.caddy.virtualHosts."${cfg.hostName}" = mkIf config.homelab.services.caddy.enable {
         extraConfig = ''
           tls internal
-          reverse_proxy localhost:8080 {
+          reverse_proxy 127.0.0.1:8080 {
             header_up Host {host}
             header_up X-Real-IP {remote_host}
             header_up X-Forwarded-For {remote_host}
@@ -199,10 +242,16 @@ in {
 
     # Configure nginx outside of the main mkIf to avoid scoping issues
     (mkIf cfg.enable {
-      # Configure nginx to listen on port 8080 (not 80, since Caddy uses that)
+      # Configure nginx to listen strictly on loopback port 8080 (Caddy handles external TLS)
       services.nginx = {
         defaultHTTPListenPort = 8080;
         defaultSSLListenPort = 8443;
+        virtualHosts.${cfg.hostName}.listen = [
+          {
+            addr = "127.0.0.1";
+            port = 8080;
+          }
+        ];
       };
     })
   ];

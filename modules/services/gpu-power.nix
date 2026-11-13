@@ -2,6 +2,7 @@
   config,
   lib,
   pkgs,
+  mkHardenedService,
   ...
 }:
 with lib; let
@@ -442,21 +443,26 @@ in {
       description = "Spin down GPU to low-power profile on boot";
       after = ["graphical.target"];
       wantedBy = ["multi-user.target"];
-      serviceConfig = {
-        Type = "oneshot";
-        ExecStart = "${pkgs.writeShellScript "gpu-spindown-boot" ''
-          for dev in /sys/class/drm/card[0-9]/device; do
-            [ -f "$dev/vendor" ] || continue
-            if [ "$(cat "$dev/vendor")" = "0x1002" ]; then
-              if [ -f "$dev/power_dpm_force_performance_level" ]; then
-                echo "low" > "$dev/power_dpm_force_performance_level"
+      serviceConfig = mkHardenedService {
+        allowGpu = true;
+        extraConfig = {
+          Type = "oneshot";
+          ProtectSystem = false;
+          ProtectKernelTunables = false;
+          ExecStart = "${pkgs.writeShellScript "gpu-spindown-boot" ''
+            for dev in /sys/class/drm/card[0-9]/device; do
+              [ -f "$dev/vendor" ] || continue
+              if [ "$(cat "$dev/vendor")" = "0x1002" ]; then
+                if [ -f "$dev/power_dpm_force_performance_level" ]; then
+                  echo "low" > "$dev/power_dpm_force_performance_level"
+                fi
+                if [ -f "$dev/pp_power_profile_mode" ]; then
+                  echo "2" > "$dev/pp_power_profile_mode" 2>/dev/null || true
+                fi
               fi
-              if [ -f "$dev/pp_power_profile_mode" ]; then
-                echo "2" > "$dev/pp_power_profile_mode" 2>/dev/null || true
-              fi
-            fi
-          done
-        ''}";
+            done
+          ''}";
+        };
       };
     };
   };

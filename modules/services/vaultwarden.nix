@@ -2,6 +2,8 @@
   config,
   lib,
   pkgs,
+  mkHardenedService,
+  mkHardeningOptions,
   ...
 }:
 with lib; let
@@ -60,6 +62,8 @@ in {
         description = "Client ID for OIDC provider";
       };
     };
+
+    hardening = mkHardeningOptions {service = "Vaultwarden";};
   };
 
   config = mkIf cfg.enable {
@@ -118,14 +122,24 @@ in {
     # Ensure permissions for data and secrets directories
     systemd.tmpfiles.rules = [
       "d ${cfg.dataDir} 0700 vaultwarden vaultwarden -"
-      "d /persist/secrets/vaultwarden 0700 vaultwarden vaultwarden -"
+      "d ${builtins.dirOf (toString cfg.environmentFile)} 0700 vaultwarden vaultwarden -"
     ];
+
+    # Register persistent state directory and runtime secret paths
+    homelab.persistence.directories = [cfg.dataDir];
+    homelab.hardening.secretPaths = [(toString cfg.environmentFile)];
+
+    # Systemd confinement
+    systemd.services.vaultwarden.serviceConfig = mkIf cfg.hardening.enable (mkHardenedService {
+      inherit (cfg.hardening) allowJit;
+      readWritePaths = [cfg.dataDir (builtins.dirOf (toString cfg.environmentFile))];
+    });
 
     # Self-register in Caddy reverse proxy
     services.caddy.virtualHosts."${cfg.subdomain}.${caddyCfg.domain}" = mkIf caddyCfg.enable {
       extraConfig = ''
         tls internal
-        reverse_proxy localhost:${toString cfg.port} {
+        reverse_proxy 127.0.0.1:${toString cfg.port} {
           header_down Cross-Origin-Resource-Policy "same-site"
         }
       '';

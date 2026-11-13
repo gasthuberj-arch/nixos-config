@@ -1,6 +1,8 @@
 {
   config,
   lib,
+  mkHardenedService,
+  mkHardeningOptions,
   ...
 }:
 with lib; let
@@ -125,6 +127,8 @@ in {
         description = "Enable Authelia forward authentication for Gatus status page";
       };
     };
+
+    hardening = mkHardeningOptions {service = "Gatus";};
   };
 
   config = mkIf cfg.enable {
@@ -140,7 +144,10 @@ in {
     services.gatus = {
       enable = true;
       settings = {
-        web.port = cfg.port;
+        web = {
+          address = "127.0.0.1";
+          inherit (cfg) port;
+        };
 
         storage = {
           type = "sqlite";
@@ -160,12 +167,20 @@ in {
     };
 
     # Override DynamicUser so bind-mounted /var/lib/gatus is not renamed to /var/lib/private/gatus
-    systemd.services.gatus.serviceConfig = {
-      DynamicUser = lib.mkForce false;
-      User = "gatus";
-      Group = "gatus";
-      PrivateUsers = lib.mkForce false;
-    };
+    systemd.services.gatus.serviceConfig =
+      {
+        DynamicUser = lib.mkForce false;
+        User = "gatus";
+        Group = "gatus";
+        PrivateUsers = lib.mkForce false;
+      }
+      // optionalAttrs cfg.hardening.enable (mkHardenedService {
+        inherit (cfg.hardening) allowJit;
+        readWritePaths = ["/var/lib/gatus"];
+      });
+
+    # Register persistent state directory
+    homelab.persistence.directories = ["/var/lib/gatus"];
 
     systemd.tmpfiles.rules = [
       "d /var/lib/gatus 0750 gatus gatus -"
@@ -187,7 +202,7 @@ in {
             copy_headers Remote-User Remote-Groups Remote-Name Remote-Email
           }
         ''}
-        reverse_proxy localhost:${toString cfg.port}
+        reverse_proxy 127.0.0.1:${toString cfg.port}
       '';
     };
   };

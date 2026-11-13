@@ -87,13 +87,14 @@
 
   # Filesystem mount options
   fileSystems."/persist".neededForBoot = true;
-  fileSystems."/var/lib".neededForBoot = true;
+  fileSystems."/persist".options = ["nosuid" "nodev"];
   fileSystems."/home".neededForBoot = true;
+  fileSystems."/home".options = ["nosuid" "nodev"];
 
-  fileSystems."/media".options = ["nofail" "x-systemd.after=zfs-import.target"];
-  fileSystems."/pictures".options = ["nofail" "x-systemd.after=zfs-import.target"];
-  fileSystems."/archive".options = ["nofail" "x-systemd.after=zfs-import.target"];
-  fileSystems."/backups".options = ["nofail" "x-systemd.after=zfs-import.target"];
+  fileSystems."/media".options = ["nofail" "nosuid" "nodev" "x-systemd.after=zfs-import.target"];
+  fileSystems."/pictures".options = ["nofail" "nosuid" "nodev" "x-systemd.after=zfs-import.target"];
+  fileSystems."/archive".options = ["nofail" "nosuid" "nodev" "x-systemd.after=zfs-import.target"];
+  fileSystems."/backups".options = ["nofail" "nosuid" "nodev" "x-systemd.after=zfs-import.target"];
 
   # --- Virtual Input Devices (Sunshine Game Streaming) ---
   boot.kernelModules = ["uinput"];
@@ -216,7 +217,7 @@
       enable = true;
       sunshine = {
         enable = true;
-        openFirewall = true;
+        openFirewall = false;
       };
       emulators = {
         enable = true;
@@ -275,6 +276,12 @@
   users.users.johannes.openssh.authorizedKeys.keys = [
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPQqC5ARFNlBdg57mKQfe8K30sWVE2UO+ytPiyeL0DCi johannes@tab-s7"
   ];
+
+  # --- Per-host SOPS Secrets ---
+  sops = {
+    defaultSopsFile = ../../secrets/homelab.yaml;
+    age.sshKeyPaths = ["/persist/etc/ssh/ssh_host_ed25519_key"];
+  };
 
   # State version
   system.stateVersion = "24.11";

@@ -1,0 +1,46 @@
+# Per-host SOPS creation rules.
+# Replace each placeholder recipient below with the public age key derived from
+# that host's SSH ed25519 host key before encrypting secrets:
+#   nix run nixpkgs#ssh-to-age -- -i /persist/etc/ssh/ssh_host_ed25519_key.pub   # homelab
+#   nix run nixpkgs#ssh-to-age -- -i /etc/ssh/ssh_host_ed25519_key.pub           # standard hosts
+# Then re-encrypt all files with:
+#   sops updatekeys secrets/*.yaml
+
+keys:
+  - &admin age1adminplaceholderreplacewithoperatoragekey0000000000000000000000
+  - &homelab age1homelabplaceholderreplacewithssh2agekey000000000000000000000
+  - &work_laptop age1worklaptopplaceholderreplacewithssh2agekey0000000000000000
+  - &personal_laptop age1personallaptopplaceholderreplacewithssh2agekey0000000000
+  - &rpi5 age1rpi5placeholderreplacewithssh2agekey000000000000000000000000
+  - &orin_nx age1orinnxplaceholderreplacewithssh2agekey000000000000000000000
+
+creation_rules:
+  - path_regex: ^secrets/homelab\.yaml$
+    key_groups:
+      - age:
+          - *admin
+          - *homelab
+
+  - path_regex: ^secrets/work-laptop\.yaml$
+    key_groups:
+      - age:
+          - *admin
+          - *work_laptop
+
+  - path_regex: ^secrets/personal-laptop\.yaml$
+    key_groups:
+      - age:
+          - *admin
+          - *personal_laptop
+
+  - path_regex: ^secrets/rpi5\.yaml$
+    key_groups:
+      - age:
+          - *admin
+          - *rpi5
+
+  - path_regex: ^secrets/orin-nx\.yaml$
+    key_groups:
+      - age:
+          - *admin
+          - *orin_nx

@@ -3,6 +3,8 @@
   lib,
   pkgs,
   pkgs-unstable,
+  mkHardenedService,
+  mkHardeningOptions,
   ...
 }:
 with lib; let
@@ -82,6 +84,8 @@ in {
         description = "Enable ZFS exporter for ZFS pool metrics";
       };
     };
+
+    hardening = mkHardeningOptions {service = "Grafana, Prometheus, and Loki";};
   };
 
   config = mkIf cfg.enable {
@@ -166,6 +170,7 @@ in {
     # Prometheus
     services.prometheus = mkIf cfg.prometheus.enable {
       enable = true;
+      listenAddress = "127.0.0.1";
       inherit (cfg.prometheus) port retentionTime;
 
       globalConfig = {
@@ -219,6 +224,7 @@ in {
       exporters = {
         node = mkIf cfg.exporters.node {
           enable = true;
+          listenAddress = "127.0.0.1";
           enabledCollectors = [
             "systemd"
             "processes"
@@ -236,10 +242,12 @@ in {
 
         systemd = mkIf cfg.exporters.systemd {
           enable = true;
+          listenAddress = "127.0.0.1";
         };
 
         zfs = mkIf cfg.exporters.zfs {
           enable = true;
+          listenAddress = "127.0.0.1";
         };
       };
     };
@@ -248,7 +256,11 @@ in {
     services.loki = mkIf cfg.loki.enable {
       enable = true;
       configuration = {
-        server.http_listen_port = cfg.loki.port;
+        server = {
+          http_listen_address = "127.0.0.1";
+          http_listen_port = cfg.loki.port;
+          grpc_listen_address = "127.0.0.1";
+        };
         auth_enabled = false;
 
         ingester = {
@@ -317,6 +329,7 @@ in {
     # Grafana Alloy log collector (replaces promtail, which reached end-of-life)
     services.alloy = mkIf cfg.loki.enable {
       enable = true;
+      extraFlags = ["--server.http.listen-addr=127.0.0.1:12345"];
       configPath = pkgs.writeText "alloy-config.alloy" ''
         loki.write "loki" {
           endpoint {
@@ -365,7 +378,7 @@ in {
 
         # Generate admin password
         if [ ! -f "$SECRETS_DIR/admin-password" ]; then
-          echo "changeme" > "$SECRETS_DIR/admin-password"
+          ${pkgs.openssl}/bin/openssl rand -base64 32 > "$SECRETS_DIR/admin-password"
           chmod 600 "$SECRETS_DIR/admin-password"
         fi
 
@@ -391,11 +404,43 @@ in {
       };
     };
 
+    # Register persistent state directories and runtime secret paths
+    homelab.persistence.directories =
+      [cfg.dataDir]
+      ++ optional cfg.prometheus.enable "/var/lib/prometheus2"
+      ++ optional cfg.loki.enable "/var/lib/loki";
+
+    homelab.hardening.secretPaths = [
+      "/persist/secrets/grafana/admin-password"
+      "/persist/secrets/grafana/secret-key"
+      "/persist/secrets/grafana/oidc-client-secret"
+    ];
+
+    # Systemd confinement
+    systemd.services.grafana.serviceConfig = mkIf cfg.hardening.enable (mkHardenedService {
+      inherit (cfg.hardening) allowJit;
+      readWritePaths = [cfg.dataDir "/persist/secrets/grafana"];
+    });
+
+    systemd.services.prometheus.serviceConfig = mkIf (cfg.hardening.enable && cfg.prometheus.enable) (mkHardenedService {
+      inherit (cfg.hardening) allowJit;
+      readWritePaths = ["/var/lib/prometheus2"];
+    });
+
+    systemd.services.loki.serviceConfig = mkIf (cfg.hardening.enable && cfg.loki.enable) (mkHardenedService {
+      inherit (cfg.hardening) allowJit;
+      readWritePaths = ["/var/lib/loki"];
+    });
+
+    systemd.services.alloy.serviceConfig = mkIf (cfg.hardening.enable && cfg.loki.enable) (mkHardenedService {
+      inherit (cfg.hardening) allowJit;
+    });
+
     # Self-register in Caddy reverse proxy
     services.caddy.virtualHosts."${cfg.subdomain}.${config.homelab.services.caddy.domain}" = mkIf config.homelab.services.caddy.enable {
       extraConfig = ''
         tls internal
-        reverse_proxy localhost:${toString cfg.port}
+        reverse_proxy 127.0.0.1:${toString cfg.port}
       '';
     };
 

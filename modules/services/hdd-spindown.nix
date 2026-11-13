@@ -2,6 +2,7 @@
   config,
   lib,
   pkgs,
+  mkHardenedService,
   ...
 }:
 with lib; let
@@ -78,9 +79,13 @@ in {
       description = "Configure HDD Spindown Timeouts";
       wantedBy = ["multi-user.target"];
       after = ["local-fs.target"];
-      serviceConfig = {
-        Type = "oneshot";
-        RemainAfterExit = true;
+      serviceConfig = mkHardenedService {
+        extraConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+          PrivateDevices = false;
+          DevicePolicy = "auto";
+        };
       };
       script = ''
         for dev_name in ${toString cfg.devices}; do

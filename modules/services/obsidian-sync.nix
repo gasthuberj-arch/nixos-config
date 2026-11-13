@@ -2,6 +2,8 @@
   config,
   lib,
   pkgs,
+  mkHardenedService,
+  mkHardeningOptions,
   ...
 }:
 with lib; let
@@ -27,6 +29,11 @@ in {
       type = types.str;
       default = "/var/lib/couchdb";
       description = "Path to store the sync database";
+    };
+
+    hardening = mkHardeningOptions {
+      service = "CouchDB";
+      defaultAllowJit = true;
     };
   };
 
@@ -67,6 +74,15 @@ in {
       "d ${cfg.dataDir} 0770 couchdb couchdb -"
     ];
 
+    # Register persistent state directory
+    homelab.persistence.directories = [cfg.dataDir];
+
+    # Systemd confinement
+    systemd.services.couchdb.serviceConfig = mkIf cfg.hardening.enable (mkHardenedService {
+      inherit (cfg.hardening) allowJit;
+      readWritePaths = [cfg.dataDir];
+    });
+
     # Setup Script: Create the 'obsidian' database automatically
     systemd.services.obsidian-sync-init = {
       description = "Initialize Obsidian Sync Database";
@@ -90,7 +106,7 @@ in {
     services.caddy.virtualHosts."${cfg.subdomain}.${caddyCfg.domain}" = mkIf caddyCfg.enable {
       extraConfig = ''
         tls internal
-        reverse_proxy localhost:${toString cfg.port} {
+        reverse_proxy 127.0.0.1:${toString cfg.port} {
           header_up Host {host}
           header_up X-Forwarded-Proto {scheme}
         }

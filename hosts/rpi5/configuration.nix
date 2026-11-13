@@ -4,8 +4,9 @@
   ...
 }: {
   imports = [
-    # Universal baseline
+    # Universal baseline & server profile
     ../../modules/core/base.nix
+    ../../modules/profiles/server.nix
 
     # Raspberry Pi 5 kernel & hardware modules
     nixos-raspberrypi.nixosModules.sd-image
@@ -45,6 +46,9 @@
     moonlight-qt
   ];
   services.udev.packages = [pkgs.game-devices-udev-rules];
+
+  # Per-host SOPS secrets
+  sops.defaultSopsFile = ../../secrets/rpi5.yaml;
 
   system.stateVersion = "25.11";
 }

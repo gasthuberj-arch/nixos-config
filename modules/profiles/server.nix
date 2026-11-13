@@ -1,4 +1,8 @@
-{pkgs, ...}: {
+{
+  pkgs,
+  mkHardenedService,
+  ...
+}: {
   # Server Profile: Power management and headless operation
 
   # Disable sleep / suspend targets
@@ -12,9 +16,13 @@
     description = "Enable Wake-on-LAN on all ethernet interfaces";
     after = ["network.target"];
     wantedBy = ["multi-user.target"];
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
+    serviceConfig = mkHardenedService {
+      extraConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+        CapabilityBoundingSet = ["CAP_NET_ADMIN"];
+        AmbientCapabilities = ["CAP_NET_ADMIN"];
+      };
     };
     script = ''
       for interface in $(${pkgs.iproute2}/bin/ip -o link show | ${pkgs.gnugrep}/bin/grep -v 'link/loopback' | ${pkgs.gawk}/bin/awk -F': ' '{print $2}' | ${pkgs.gnused}/bin/sed 's/@.*//'); do

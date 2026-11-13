@@ -2,6 +2,8 @@
   config,
   lib,
   pkgs,
+  mkHardenedService,
+  mkHardeningOptions,
   ...
 }:
 with lib; let
@@ -78,6 +80,8 @@ in {
         description = "Path to OIDC issuer private key file";
       };
     };
+
+    hardening = mkHardeningOptions {service = "Authelia";};
   };
 
   config = mkIf cfg.enable {
@@ -399,6 +403,25 @@ in {
     systemd.tmpfiles.rules = [
       "d /var/lib/authelia-main 0700 authelia-main authelia-main -"
     ];
+
+    # Register persistent state directory and runtime secret paths
+    homelab.persistence.directories = ["/var/lib/authelia-main"];
+    homelab.hardening.secretPaths =
+      [
+        (toString cfg.secrets.jwtSecretFile)
+        (toString cfg.secrets.storageEncryptionKeyFile)
+        (toString cfg.secrets.sessionSecretFile)
+      ]
+      ++ optionals cfg.oidc.enable [
+        (toString cfg.secrets.oidcHmacSecretFile)
+        (toString cfg.secrets.oidcIssuerPrivateKeyFile)
+      ];
+
+    # Systemd confinement
+    systemd.services.authelia-main.serviceConfig = mkIf cfg.hardening.enable (mkHardenedService {
+      inherit (cfg.hardening) allowJit;
+      readWritePaths = ["/var/lib/authelia-main" (builtins.dirOf (toString cfg.secrets.jwtSecretFile))];
+    });
 
     # Self-register in Caddy reverse proxy
     services.caddy.virtualHosts."auth.${cfg.domain}" = mkIf config.homelab.services.caddy.enable {

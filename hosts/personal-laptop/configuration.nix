@@ -74,6 +74,9 @@
     "d /data 0755 johannes users -"
   ];
 
+  # Per-host SOPS secrets
+  sops.defaultSopsFile = ../../secrets/personal-laptop.yaml;
+
   # System state version
   system.stateVersion = "25.11";
 }

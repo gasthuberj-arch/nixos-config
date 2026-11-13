@@ -2,8 +2,8 @@
 result
 result-*
 
-# Secrets (if not using sops/agenix)
-secrets/
+# Secrets (if not using sops/agenix; encrypted SOPS YAML files under secrets/ are tracked)
+# secrets/
 *.key
 *.pem
 

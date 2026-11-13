@@ -1,4 +1,14 @@
-{pkgs, ...}: {
+{
+  config,
+  lib,
+  options,
+  pkgs,
+  ...
+}: {
+  imports = [
+    ./hardening.nix
+  ];
+
   # Nix & Flake settings
   nix = {
     settings = {
@@ -56,8 +66,50 @@
     enable = true;
     settings = {
       PermitRootLogin = "no";
-      PasswordAuthentication = true;
+      PasswordAuthentication = lib.mkDefault false;
+      KbdInteractiveAuthentication = lib.mkDefault false;
+      X11Forwarding = lib.mkDefault false;
     };
+  };
+
+  # Kernel sysctl security baseline (priority 900: overrides nixpkgs mkDefault 1000,
+  # while still allowing per-host configuration.nix overrides at normal priority 100)
+  boot.kernel.sysctl = lib.mapAttrs (_: lib.mkOverride 900) {
+    "kernel.kptr_restrict" = 2;
+    "kernel.dmesg_restrict" = 1;
+    "kernel.unprivileged_bpf_disabled" = 1;
+    "net.core.bpf_jit_harden" = 2;
+    "net.ipv4.conf.all.accept_redirects" = 0;
+    "net.ipv4.conf.default.accept_redirects" = 0;
+    "net.ipv4.conf.all.secure_redirects" = 0;
+    "net.ipv4.conf.default.secure_redirects" = 0;
+    "net.ipv4.conf.all.send_redirects" = 0;
+    "net.ipv4.conf.default.send_redirects" = 0;
+    "net.ipv4.conf.all.rp_filter" = 1;
+    "net.ipv4.conf.default.rp_filter" = 1;
+    "net.ipv4.tcp_syncookies" = 1;
+    "net.ipv6.conf.all.accept_redirects" = 0;
+    "net.ipv6.conf.default.accept_redirects" = 0;
+  };
+
+  assertions = [
+    {
+      assertion =
+        (!config.services.openssh.enable)
+        || (
+          config.services.openssh.settings.PermitRootLogin
+          == "no"
+          && !config.services.openssh.settings.PasswordAuthentication
+        );
+      message = "OpenSSH baseline requires PermitRootLogin = \"no\" and PasswordAuthentication = false.";
+    }
+  ];
+
+  # Default per-host SOPS settings (hosts with impermanent roots override sshKeyPaths)
+  sops = lib.mkIf (options ? sops) {
+    validateSopsFiles = lib.mkDefault false;
+    age.sshKeyPaths = lib.mkDefault ["/etc/ssh/ssh_host_ed25519_key"];
+    gnupg.sshKeyPaths = lib.mkDefault [];
   };
 
   # Networking and Firewall baseline

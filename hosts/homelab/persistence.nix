@@ -1,30 +1,20 @@
-_: {
+{
+  config,
+  lib,
+  ...
+}: {
   # Impermanence - centralized state persistence for homelab
   environment.persistence."/persist" = {
     hideMounts = true;
-    directories = [
-      "/var/lib/nixos"
-      "/var/lib/systemd"
-      "/var/lib/NetworkManager"
-      "/var/lib/tailscale"
-      "/var/lib/caddy"
-      "/var/lib/authelia-main"
-      "/var/lib/immich"
-      "/var/lib/paperless"
-      "/var/lib/nextcloud"
-      "/var/lib/hass"
-      "/var/lib/grafana"
-      "/var/lib/prometheus2"
-      "/var/lib/loki"
-      "/var/lib/couchdb"
-      "/var/lib/vaultwarden"
-      "/var/lib/postgresql"
-      "/var/lib/redis-immich"
-      "/var/lib/redis-paperless"
-      "/var/lib/redis-nextcloud"
-      "/var/lib/sunshine"
-      "/var/lib/gatus"
-    ];
+    directories = lib.unique (
+      [
+        "/var/lib/nixos"
+        "/var/lib/systemd"
+        "/var/lib/NetworkManager"
+        "/var/lib/tailscale"
+      ]
+      ++ config.homelab.persistence.directories
+    );
     files = [
       "/etc/machine-id"
       "/etc/ssh/ssh_host_ed25519_key"

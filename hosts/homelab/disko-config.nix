@@ -235,16 +235,13 @@ in {
 
             "nixos/var/log" = {
               type = "zfs_fs";
-              options.mountpoint = "legacy";
               mountpoint = "/var/log";
-              options."com.sun:auto-snapshot" = "true";
-            };
-
-            "nixos/var/lib" = {
-              type = "zfs_fs";
-              options.mountpoint = "legacy";
-              mountpoint = "/var/lib";
-              options."com.sun:auto-snapshot" = "true";
+              options = {
+                mountpoint = "legacy";
+                devices = "off";
+                setuid = "off";
+                "com.sun:auto-snapshot" = "true";
+              };
             };
 
             # Config persistence
@@ -258,17 +255,23 @@ in {
             # General persistence for impermanence
             "nixos/persist" = {
               type = "zfs_fs";
-              options.mountpoint = "legacy";
               mountpoint = "/persist";
-              options."com.sun:auto-snapshot" = "true";
+              options = {
+                mountpoint = "legacy";
+                devices = "off";
+                setuid = "off";
+                "com.sun:auto-snapshot" = "true";
+              };
             };
 
             # Application data
             "nixos/apps" = {
               type = "zfs_fs";
-              options.mountpoint = "legacy";
               mountpoint = "/apps";
               options = {
+                mountpoint = "legacy";
+                devices = "off";
+                setuid = "off";
                 recordsize = "16K"; # Better for databases
                 "com.sun:auto-snapshot" = "true";
               };
@@ -277,9 +280,11 @@ in {
             # Downloads
             "nixos/downloads" = {
               type = "zfs_fs";
-              options.mountpoint = "legacy";
               mountpoint = "/downloads";
               options = {
+                mountpoint = "legacy";
+                devices = "off";
+                setuid = "off";
                 recordsize = "128K"; # Better for large files
                 "com.sun:auto-snapshot" = "false";
               };
@@ -310,6 +315,8 @@ in {
             acltype = "posixacl";
             canmount = "off";
             compression = "lz4";
+            devices = "off";
+            setuid = "off";
             normalization = "formD";
             relatime = "on";
             xattr = "sa";

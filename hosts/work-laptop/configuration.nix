@@ -70,6 +70,9 @@
   # Enable zsh system-wide as login shell for johannes
   programs.zsh.enable = true;
 
+  # Per-host SOPS secrets
+  sops.defaultSopsFile = ../../secrets/work-laptop.yaml;
+
   # System state version
   system.stateVersion = "25.11";
 }

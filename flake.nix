@@ -85,9 +85,6 @@
           statix.enable = true;
           gitleaks = {
             enable = true;
-            name = "gitleaks";
-            entry = "${pkgs.gitleaks}/bin/gitleaks protect --staged --verbose";
-            pass_filenames = false;
           };
         };
       };
@@ -155,6 +152,7 @@
         system = rpiSystem;
         specialArgs = inputs // {inherit nixos-raspberrypi;};
         modules = [
+          sops-nix.nixosModules.sops
           ./hosts/rpi5/configuration.nix
         ];
       };
@@ -209,6 +207,7 @@
           inherit inputs pkgs-unstable;
         };
         modules = [
+          sops-nix.nixosModules.sops
           jetpack-nixos.nixosModules.default
           ./hosts/orin-nx/configuration.nix
         ];

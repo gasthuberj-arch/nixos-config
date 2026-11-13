@@ -65,7 +65,13 @@ in {
       enable = mkOption {
         type = types.bool;
         default = true;
-        description = "Enable Steam with Proton, GameScope, and remote play firewall ports.";
+        description = "Enable Steam with Proton, GameScope, and remote play.";
+      };
+
+      openFirewall = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Open Steam Remote Play and dedicated server ports on the physical LAN.";
       };
     };
 
@@ -74,6 +80,26 @@ in {
         type = types.bool;
         default = true;
         description = "Enable udev rules and drivers for game controllers (Xbox, PlayStation, Switch Pro).";
+      };
+    };
+
+    isolation = {
+      enable = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Isolate gaming services in a dedicated systemd slice and restrict filesystem access to sensitive service secrets and state.";
+      };
+
+      inaccessiblePaths = mkOption {
+        type = types.listOf types.str;
+        default =
+          [
+            "-/persist/secrets"
+            "-/run/secrets"
+            "-/run/secrets.d"
+          ]
+          ++ map (d: "-${d}") (builtins.filter (d: d != "/var/lib/sunshine") config.homelab.persistence.directories);
+        description = "Paths made inaccessible to the Sunshine gaming service.";
       };
     };
   };
@@ -118,9 +144,35 @@ in {
 
     users.users.${cfg.user}.extraGroups = ["uinput"];
 
-    # Fix Wayland environment for Sunshine
+    # --- Workload Containment & Persistent State ---
+    homelab.persistence.directories = optional cfg.sunshine.enable "/var/lib/sunshine";
+
+    systemd.user.slices.gaming = mkIf cfg.isolation.enable {
+      description = "Isolated user slice for gaming workloads";
+      sliceConfig = {
+        CPUAccounting = true;
+        MemoryAccounting = true;
+        TasksAccounting = true;
+      };
+    };
+
+    # Fix Wayland environment and apply containment for Sunshine
     systemd.user.services.sunshine = mkIf cfg.sunshine.enable {
-      serviceConfig.Environment = ["WAYLAND_DISPLAY=wayland-0"];
+      serviceConfig =
+        {
+          Environment = ["WAYLAND_DISPLAY=wayland-0"];
+        }
+        // optionalAttrs cfg.isolation.enable {
+          Slice = "gaming.slice";
+          NoNewPrivileges = true;
+          PrivateTmp = true;
+          ProtectControlGroups = true;
+          ProtectKernelTunables = true;
+          ProtectKernelModules = true;
+          RestrictSUIDSGID = true;
+          LockPersonality = true;
+          InaccessiblePaths = cfg.isolation.inaccessiblePaths;
+        };
     };
 
     # --- Packages & Emulators ---
@@ -148,8 +200,8 @@ in {
 
     programs.steam = mkIf cfg.steam.enable {
       enable = true;
-      remotePlay.openFirewall = true;
-      dedicatedServer.openFirewall = true;
+      remotePlay.openFirewall = cfg.steam.openFirewall;
+      dedicatedServer.openFirewall = cfg.steam.openFirewall;
       gamescopeSession.enable = true;
       extraCompatPackages = with pkgs; [
         proton-ge-bin

@@ -32,6 +32,7 @@
     ../../modules/services/gatus.nix
     ../../modules/services/hdd-spindown.nix
     ../../modules/services/gpu-power.nix
+    ../../modules/services/agent-dispatcher.nix
   ];
 
   # --- ZFS Boot & Pool Hardware Configuration ---
@@ -123,6 +124,18 @@
 
   # --- Declarative Homelab Application Services ---
   homelab.services = {
+    # Ephemeral microVM agent workers (isolated bridge + `sudo agent-vm-shell`).
+    # Issue polling stays off until the GitHub App secrets exist in sops.
+    agentDispatcher = {
+      enable = true;
+      # repositories = ["gasthuberj-arch/nixos-config"];
+      # githubAppId = "<app id>";
+      # githubAppInstallationId = "<installation id>";
+      # githubPrivateKeyFile = config.sops.secrets."agent_dispatcher/github_app_private_key".path;
+      # llmApiKeyFile = config.sops.secrets."agent_dispatcher/llm_api_key".path;
+      # worker.agentPackages = [pkgs.claude-code];
+    };
+
     # Caddy reverse proxy engine
     caddy = {
       enable = true;

@@ -243,9 +243,9 @@
       antigravity = pkgs.callPackage ./pkgs/antigravity.nix {};
       agy = self.packages.x86_64-linux.antigravity;
       google-colab-cli = pkgs.callPackage ./pkgs/google-colab-cli.nix {};
-      agent-vm-sandbox = pkgs.callPackage ./pkgs/agent-vm-sandbox.nix {
-        microvmRunner = agentSandbox.config.microvm.declaredRunner;
-        inherit (agentSandbox.config.networking) hostName;
+      agent-vm-sandbox = pkgs.callPackage ./pkgs/agent-vm-launcher.nix {
+        name = "agent-vm-sandbox";
+        vm = agentSandbox;
       };
     };
   };

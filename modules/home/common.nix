@@ -237,6 +237,7 @@ in {
     proton-vpn
     thunderbird
     keepassxc
+    libreoffice
 
     # Spaced repetition, with AnkiConnect baked in (declaratively, via
     # anki.withAddons) so external tools/scripts can add cards over its

@@ -1,4 +1,6 @@
 {
+  config,
+  lib,
   pkgs,
   mkHardenedService,
   ...
@@ -11,7 +13,18 @@
   systemd.targets.hibernate.enable = false;
   systemd.targets.hybrid-sleep.enable = false;
 
-  # Enable Wake-on-LAN for all ethernet interfaces
+  # Enable Wake-on-LAN as early as possible via udev (net_setup_link) and keep
+  # NetworkManager from resetting it when bringing interfaces up or down.
+  systemd.network.links."10-wol" = {
+    matchConfig.Type = "ether";
+    linkConfig.WakeOnLan = "magic";
+  };
+
+  networking.networkmanager.connectionConfig = lib.mkIf config.networking.networkmanager.enable {
+    "ethernet.wake-on-lan" = "magic";
+  };
+
+  # Fallback: Enable Wake-on-LAN for all ethernet interfaces at boot
   systemd.services.enable-wol = {
     description = "Enable Wake-on-LAN on all ethernet interfaces";
     after = ["network.target"];

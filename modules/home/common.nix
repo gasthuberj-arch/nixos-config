@@ -439,6 +439,33 @@ in {
   programs.mise = {
     enable = true;
     enableZshIntegration = true;
+    # Work repos set mise min_version 2026.10.21; nixpkgs (even master) is at
+    # 2026.10.17, and Nix builds disable `mise self-update`. The pin applies
+    # only while unstable is older, so a flake update that brings
+    # pkgs-unstable.mise >= the pin switches back to it automatically. The
+    # override block is then dead code and can be deleted.
+    # doCheck = false: the nixpkgs test skip-list is tuned to its own version.
+    package = let
+      pinned = "2026.11.9";
+    in
+      if lib.versionAtLeast pkgs-unstable.mise.version pinned
+      then pkgs-unstable.mise
+      else
+        pkgs-unstable.mise.overrideAttrs (finalAttrs: _: {
+          version = pinned;
+          src = pkgs.fetchFromGitHub {
+            owner = "jdx";
+            repo = "mise";
+            tag = "v${finalAttrs.version}";
+            hash = "sha256-5WULNOQYzTFqiY6rH6Dl/ySKj3+6NltxLR2Z7Tqpb0U=";
+          };
+          cargoDeps = pkgs-unstable.rustPlatform.fetchCargoVendor {
+            inherit (finalAttrs) src;
+            name = "mise-${finalAttrs.version}";
+            hash = "sha256-A9Wp+HhrEn8iBkgn6o9q9Tvv6feT/5xYoG+NblqNBkk=";
+          };
+          doCheck = false;
+        });
   };
 
   programs.atuin = {
@@ -458,19 +485,6 @@ in {
   # their versions, which is why in-app updates are switched off below.
   programs.vscode = {
     enable = true;
-    # VS Code 1.144 moved its bundled ripgrep to @vscode/ripgrep-universal, but
-    # nixpkgs generic.nix still `rm`s the old path, so postPatch fails. Rewrite
-    # the path in place. Delete once nixpkgs catches up (the warning fires then).
-    package = let
-      oldRg = "resources/app/node_modules/@vscode/ripgrep/bin/rg";
-      newRg = "resources/app/node_modules/@vscode/ripgrep-universal/bin/linux-x64/rg";
-    in
-      pkgs.vscode.overrideAttrs (old: {
-        postPatch =
-          lib.warnIfNot (lib.hasInfix oldRg old.postPatch)
-          "vscode ripgrep override in modules/home/common.nix no longer matches nixpkgs; remove it"
-          (builtins.replaceStrings [oldRg] [newRg] old.postPatch);
-      });
     profiles.default.extensions = with pkgs.vscode-extensions; [
       vscodevim.vim
       github.vscode-pull-request-github # review + comment on PRs inline

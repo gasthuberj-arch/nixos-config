@@ -51,6 +51,16 @@ with lib; let
       enable = config.homelab.services.vaultwarden.enable or false;
     }
     {
+      name = "Audiobookshelf";
+      subdomain = config.homelab.services.audiobookshelf.subdomain or "audiobookshelf";
+      enable = config.homelab.services.audiobookshelf.enable or false;
+    }
+    {
+      name = "Actual Budget";
+      subdomain = config.homelab.services.actual.subdomain or "actual";
+      enable = config.homelab.services.actual.enable or false;
+    }
+    {
       name = "Status";
       subdomain = config.homelab.services.gatus.subdomain or "status";
       enable = config.homelab.services.gatus.enable or false;

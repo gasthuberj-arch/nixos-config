@@ -320,6 +320,55 @@ in {
                 ];
                 userinfo_signed_response_alg = "none";
               }
+
+              # Audiobookshelf OIDC client
+              {
+                client_id = "audiobookshelf";
+                client_name = "Audiobookshelf";
+                client_secret = "$pbkdf2-sha512$310000$uOrqP.ms1t08cqrDAooixg$giuLEFgLzyxZSDRhnNeHmmqKWZkwLWQkLPiN5dsr4Z9SuIshFEfib6UTWIQV15/7qZjj/wlLbfOc7Rinj9C9yQ";
+                public = false;
+                authorization_policy = "one_factor";
+                require_pkce = true;
+                pkce_challenge_method = "S256";
+                token_endpoint_auth_method = "client_secret_basic";
+                redirect_uris = [
+                  "https://audiobookshelf.${cfg.domain}/auth/openid/callback"
+                  "https://audiobookshelf.${cfg.domain}/auth/openid/mobile-redirect"
+                  "audiobookshelf://oauth"
+                ];
+                scopes = [
+                  "openid"
+                  "profile"
+                  "groups"
+                  "email"
+                ];
+                response_types = ["code"];
+                grant_types = ["authorization_code"];
+                userinfo_signed_response_alg = "none";
+              }
+
+              # Actual Budget OIDC client
+              {
+                client_id = "actual";
+                client_name = "Actual Budget";
+                client_secret = "$pbkdf2-sha512$310000$uOrqP.ms1t08cqrDAooixg$giuLEFgLzyxZSDRhnNeHmmqKWZkwLWQkLPiN5dsr4Z9SuIshFEfib6UTWIQV15/7qZjj/wlLbfOc7Rinj9C9yQ";
+                public = false;
+                authorization_policy = "one_factor";
+                require_pkce = false;
+                token_endpoint_auth_method = "client_secret_basic";
+                redirect_uris = [
+                  "https://actual.${cfg.domain}/openid/callback"
+                ];
+                scopes = [
+                  "openid"
+                  "profile"
+                  "groups"
+                  "email"
+                ];
+                response_types = ["code"];
+                grant_types = ["authorization_code"];
+                userinfo_signed_response_alg = "none";
+              }
             ];
           };
         };

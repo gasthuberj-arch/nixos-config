@@ -91,6 +91,24 @@ with lib; let
         interval = "1m";
         conditions = ["[STATUS] == any(200, 401)"];
       }
+    ]
+    ++ optionals (config.homelab.services.audiobookshelf.enable or false) [
+      {
+        name = "Audiobookshelf";
+        group = "Media";
+        url = "https://${config.homelab.services.audiobookshelf.subdomain}.${caddyCfg.domain}/healthcheck";
+        interval = "1m";
+        conditions = ["[STATUS] == 200"];
+      }
+    ]
+    ++ optionals (config.homelab.services.actual.enable or false) [
+      {
+        name = "Actual Budget";
+        group = "Finance";
+        url = "https://${config.homelab.services.actual.subdomain}.${caddyCfg.domain}";
+        interval = "1m";
+        conditions = ["[STATUS] < 400"];
+      }
     ];
 in {
   options.homelab.services.gatus = {

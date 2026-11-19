@@ -29,6 +29,8 @@
     ../../modules/services/gaming.nix
     ../../modules/services/obsidian-sync.nix
     ../../modules/services/vaultwarden.nix
+    ../../modules/services/audiobookshelf.nix
+    ../../modules/services/actual.nix
     ../../modules/services/gatus.nix
     ../../modules/services/hdd-spindown.nix
     ../../modules/services/gpu-power.nix
@@ -117,6 +119,8 @@
       "grafana.homelab.lan"
       "obsidian.homelab.lan"
       "vaultwarden.homelab.lan"
+      "audiobookshelf.homelab.lan"
+      "actual.homelab.lan"
       "headscale.homelab.lan"
       "status.homelab.lan"
     ];
@@ -177,6 +181,18 @@
     # Vaultwarden password manager
     vaultwarden = {
       enable = true;
+    };
+
+    # Audiobookshelf audiobook & podcast server
+    audiobookshelf = {
+      enable = true;
+      port = 8000;
+    };
+
+    # Actual Budget personal finance server
+    actual = {
+      enable = true;
+      port = 5006;
     };
 
     # Gatus declarative service health dashboard

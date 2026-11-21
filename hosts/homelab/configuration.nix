@@ -27,7 +27,6 @@
     ../../modules/services/homeassistant.nix
     ../../modules/services/grafana.nix
     ../../modules/services/gaming.nix
-    ../../modules/services/obsidian-sync.nix
     ../../modules/services/vaultwarden.nix
     ../../modules/services/audiobookshelf.nix
     ../../modules/services/actual.nix
@@ -117,7 +116,6 @@
       "nextcloud.homelab.lan"
       "homeassistant.homelab.lan"
       "grafana.homelab.lan"
-      "obsidian.homelab.lan"
       "vaultwarden.homelab.lan"
       "audiobookshelf.homelab.lan"
       "actual.homelab.lan"
@@ -170,12 +168,6 @@
       enable = true;
       hostName = "nextcloud.homelab.lan";
       maxUploadSize = "16G";
-    };
-
-    # Obsidian LiveSync
-    obsidian-sync = {
-      enable = true;
-      port = 5984;
     };
 
     # Vaultwarden password manager

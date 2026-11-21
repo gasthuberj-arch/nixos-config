@@ -41,11 +41,6 @@ with lib; let
       enable = config.homelab.services.grafana.enable or false;
     }
     {
-      name = "Obsidian Sync";
-      subdomain = "obsidian";
-      enable = config.homelab.services.obsidian-sync.enable or false;
-    }
-    {
       name = "Vaultwarden";
       subdomain = "vaultwarden";
       enable = config.homelab.services.vaultwarden.enable or false;

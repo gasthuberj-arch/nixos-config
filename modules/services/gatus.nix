@@ -83,15 +83,6 @@ with lib; let
         conditions = ["[STATUS] == any(200, 302, 401)"];
       }
     ]
-    ++ optionals (config.homelab.services.obsidian-sync.enable or false) [
-      {
-        name = "Obsidian Sync";
-        group = "Productivity";
-        url = "https://obsidian.${caddyCfg.domain}";
-        interval = "1m";
-        conditions = ["[STATUS] == any(200, 401)"];
-      }
-    ]
     ++ optionals (config.homelab.services.audiobookshelf.enable or false) [
       {
         name = "Audiobookshelf";

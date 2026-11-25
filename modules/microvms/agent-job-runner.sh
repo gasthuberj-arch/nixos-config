@@ -1,21 +1,24 @@
-# Runs once inside the agent microVM when the host has dropped a job into
-# /run/agent-job (virtiofs share). Turns one GitHub issue into one PR.
+# Runs once, as `user`, inside a batch orb: the host dropped spec.md into
+# /run/orb-job (virtiofs share). Turns one GitHub issue into one PR.
 #
-# Inputs (all written by the host dispatcher, never baked into /nix/store):
-#   /run/agent-job/job.json      {repo, issue_number, issue_title, branch_name?, dry_run?, llm_api_key_env?}
-#   /run/agent-job/spec.md       rendered issue body
-#   /run/agent-job/github_token  1-hour, single-repo GitHub App installation token
-#   /run/agent-job/llm_api_key   API key for the coding agent CLI
+# Inputs (all written by the host, never baked into /nix/store):
+#   /run/orb-job/orb.json      {id, repo, branch, mode: "batch", issue_number, issue_title, dry_run?, branch_name?, llm_api_key_env?}
+#   /run/orb-job/spec.md       rendered issue body
+#   /run/orb-job/github_token  short-lived single-repo token, rewritten by the
+#                              host; git and gh re-read it on every call
+#   /run/orb-job/llm_api_key   optional API key for API-billed backends
+#
+# The repo was cloned into ~/<repo name> by orb-clone.service (branch
+# orb.json .branch); the work branch is created from it here.
 #
 # Environment (set by the NixOS module):
-#   AGENT_BACKEND         claude-code | opencode | aider | custom
+#   AGENT_BACKEND         antigravity | claude-code | opencode | aider | custom
 #   CUSTOM_AGENT_COMMAND  shell command used when AGENT_BACKEND=custom
 #
-# Outputs: /run/agent-job/status (exit code), /run/agent-job/pr_url
+# Outputs: /run/orb-job/status (exit code), /run/orb-job/pr_url
 
-JOB_DIR=/run/agent-job
+JOB_DIR=/run/orb-job
 SPEC_FILE="$JOB_DIR/spec.md"
-WORKSPACE=/tmp/workspace/repo
 
 write_status() {
   local rc=$?
@@ -24,7 +27,7 @@ write_status() {
 }
 trap write_status EXIT
 
-field() { jq -r "$1" "$JOB_DIR/job.json"; }
+field() { jq -r "$1" "$JOB_DIR/orb.json"; }
 
 repo=$(field '.repo')
 issue=$(field '.issue_number')
@@ -32,27 +35,25 @@ title=$(field '.issue_title')
 branch=$(field ".branch_name // \"agent/issue-$issue\"")
 dry_run=$(field '.dry_run // false')
 llm_env=$(field '.llm_api_key_env // "ANTHROPIC_API_KEY"')
+workspace="$HOME/$(basename "$repo")"
 
 echo "agent-job-runner: $repo#$issue ($title) backend=$AGENT_BACKEND dry_run=$dry_run"
 
-# --- Credentials: read from the RAM-only share, exported only to this process tree
-GH_TOKEN=$(<"$JOB_DIR/github_token")
-export GH_TOKEN
 if [[ -s "$JOB_DIR/llm_api_key" ]]; then
   export "$llm_env=$(<"$JOB_DIR/llm_api_key")"
 fi
 
 git config --global user.name "agent-worker[bot]"
 git config --global user.email "agent-worker[bot]@users.noreply.github.com"
-# The helper is evaluated by git at call time; $GH_TOKEN must stay literal here.
-# shellcheck disable=SC2016
-git config --global credential.helper '!f() { echo username=x-access-token; echo "password=$GH_TOKEN"; }; f'
 
-# --- Clone & branch
-mkdir -p "$(dirname "$WORKSPACE")"
-git clone "https://github.com/$repo.git" "$WORKSPACE"
-cd "$WORKSPACE"
-git switch -c "$branch"
+if [[ ! -d "$workspace/.git" ]]; then
+  echo "agent-job-runner: $workspace missing (orb-clone failed?)" >&2
+  exit 4
+fi
+cd "$workspace"
+if [[ "$(git branch --show-current)" != "$branch" ]]; then
+  git switch -c "$branch"
+fi
 base_rev=$(git rev-parse HEAD)
 
 # --- Pick the toolchain: repo devShell if it has one, guest system otherwise
@@ -73,6 +74,8 @@ Do not push; do not open a pull request."
 # --- Swappable agent adapter
 export SPEC_FILE
 case "$AGENT_BACKEND" in
+# agy confines file access to its workspace, so the spec goes inline.
+antigravity) agent=(agy -p "$prompt"$'\n\n'"$(<"$SPEC_FILE")" --dangerously-skip-permissions) ;;
 claude-code) agent=(claude -p "$prompt" --dangerously-skip-permissions) ;;
 opencode) agent=(opencode run "$prompt") ;;
 aider) agent=(aider --yes-always --no-auto-commits --message "$prompt") ;;

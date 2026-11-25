@@ -35,9 +35,10 @@ dmesg | tail -n 15
 
 ## Phase 3 — Zero-Trust LAN Isolation (On `homelab` after `nixos-rebuild switch`)
 
-Open an interactive shell inside the networked worker VM:
+Open an interactive shell inside a networked orb:
 ```bash
-sudo agent-vm-shell
+id=$(sudo orb spawn gasthuberj-arch/nixos-config)
+sudo orb attach "$id"
 ```
 
 Watch drop counters on the host in another terminal:

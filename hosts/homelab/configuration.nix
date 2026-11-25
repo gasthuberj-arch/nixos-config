@@ -126,8 +126,9 @@
 
   # --- Declarative Homelab Application Services ---
   homelab.services = {
-    # Ephemeral microVM agent workers (isolated bridge + `sudo agent-vm-shell`).
-    # Issue polling stays off until the GitHub App secrets exist in sops.
+    # Agent orbs (`sudo orb spawn OWNER/REPO`, `sudo orb attach ID`) on an
+    # isolated bridge, plus the batch issue poller. Polling and orb GitHub
+    # tokens stay off until the GitHub App secrets exist in sops.
     agentDispatcher = {
       enable = true;
       # repositories = ["gasthuberj-arch/nixos-config"];

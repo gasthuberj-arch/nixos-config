@@ -188,6 +188,8 @@ in {
   # bridges, no default NAT network). Pin the system instance instead.
   home.sessionVariables.LIBVIRT_DEFAULT_URI = "qemu:///system";
 
+  home.sessionVariables.TG_PROVIDER_CACHE = "1";
+
   # User packages
   home.packages = with pkgs; [
     # AI & Agent Tooling

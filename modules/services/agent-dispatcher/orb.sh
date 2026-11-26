@@ -99,16 +99,16 @@ unit_alive() {
 # Release everything a running orb holds on the host. Idempotent; also the
 # recovery path for entries left "running" by a host reboot or a crash.
 finalize_locked() {
-  local id=$1 slot job ws
+  local id=$1 slot job ws f
   exists "$id" || return 0
   slot=$(get "$id" slot)
   if [[ -n "$slot" ]]; then
     job=$(slot_get "$slot" jobDir)
     ws=$(slot_get "$slot" workspaceDir)
     # Keep the batch result for `orb wait`; everything else (tokens!) goes.
-    if [[ -e "$job/status" || -e "$job/pr_url" ]]; then
+    if [[ -e "$job/status" || -e "$job/pr_url" || -e "$job/clarification.md" ]]; then
       install -d -m 0700 "$RESULTS/$id"
-      for f in status pr_url; do
+      for f in status pr_url clarification.md; do
         if [[ -f "$job/$f" ]]; then cp "$job/$f" "$RESULTS/$id/$f"; fi
       done
     fi
@@ -458,8 +458,10 @@ cmd_wait() {
   reconcile
   jq -n --arg s "$(cat "$RESULTS/$id/status" 2>/dev/null || true)" \
     --arg p "$(cat "$RESULTS/$id/pr_url" 2>/dev/null || true)" \
+    --arg c "$(cat "$RESULTS/$id/clarification.md" 2>/dev/null || true)" \
     '{status: (if $s == "" then null else ($s | rtrimstr("\n")) end),
-      pr_url: (if $p == "" then null else ($p | rtrimstr("\n")) end)}'
+      pr_url: (if $p == "" then null else ($p | rtrimstr("\n")) end),
+      clarification: (if $c == "" then null else ($c | rtrimstr("\n")) end)}'
 }
 
 cmd_refresh_tokens() {

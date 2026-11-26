@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 0002: Hybrid vsock &amp; Out-of-Band SSH Trade-Offs</title>
+  <link rel="stylesheet" href="../assets/lesson.css" />
+</head>
+<body>
+  <main class="page">
+    <header class="topbar">
+      <span>Lesson 0002 · MicroVM Orbs</span>
+      <nav>
+        <a href="./0001-fuse-virtiofs-and-orb-storage-tradeoffs.html">← Lesson 0001</a>
+        <a href="../reference/microvm-orb-glossary.html">Glossary &amp; Matrix</a>
+        <a href="./0003-tap-bridge-and-nftables-egress-tradeoffs.html">Next: Lesson 0003 →</a>
+      </nav>
+    </header>
+
+    <h1>Hybrid <code>vsock</code> &amp; Out-of-Band SSH Trade-Offs</h1>
+    <p class="subtitle">How <code>orb attach</code> opens a shell inside a microVM with zero TCP ports, zero IP routing, and Unix-socket access control.</p>
+
+    <div class="meta-strip">
+      <strong>Mission tie-in:</strong> Keeping host-to-guest control paths decoupled from guest networking and firewall policy (<code>ADR-0006</code> on <code>homelab</code>). &nbsp;·&nbsp; <strong>Reading time:</strong> ~5 min + 3 retrieval checks.
+    </div>
+
+    <h2>1. How Hybrid <code>vsock</code> Connects Host to Guest</h2>
+    <p>
+      <strong><code>AF_VSOCK</code></strong> is a Linux socket address family built specifically for VM-to-host communication.<a class="cite" href="#ref-vsock">[1]</a> Instead of an IP address and port, an endpoint is identified by a 32-bit <strong>Context Identifier (CID)</strong> (e.g., <code>10 + slot</code>) and a port number—bypassing Ethernet, IP routing, ARP, and firewall rules completely.
+    </p>
+    <p>
+      Cloud Hypervisor (following Firecracker) uses a <strong>hybrid <code>vsock</code></strong> design:<a class="cite" href="#ref-ch-vsock">[2]</a> inside the guest, applications use standard <code>AF_VSOCK</code> (<code>sshd</code> listens on <code>vsock::22</code>), while on the <strong>host</strong>, Cloud Hypervisor exposes a plain Unix domain socket (<code>/run/orbs/slot1/vm/notify.vsock</code>). To reach guest port 22, the host client connects to that Unix socket and writes a one-line text handshake: <code>CONNECT 22\n</code>.<a class="cite" href="#ref-ch-vsock">[2]</a>
+    </p>
+    <p>
+      On your <code>homelab</code>, <code>orb.sh</code> delegates that handshake to <strong><code>systemd-ssh-proxy</code></strong> via <code>ssh -o ProxyCommand="systemd-ssh-proxy %h %p" -o ProxyUseFdpass=yes user@vsock-mux/run/orbs/slot1/vm/notify.vsock</code>.<a class="cite" href="#ref-ssh-proxy">[3]</a> Once the handshake succeeds, <code>systemd-ssh-proxy</code> hands the connected file descriptor directly to <code>ssh</code> and exits—leaving zero proxy process overhead during your session.
+    </p>
+
+    <figure>
+      <svg viewBox="0 0 720 205" role="img" aria-label="Diagram showing orb attach using ssh and systemd-ssh-proxy to connect to Cloud Hypervisor notify.vsock Unix socket with CONNECT 22 handshake into guest sshd on vsock:22">
+        <defs>
+          <marker id="arrow2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="#9b3d20" />
+          </marker>
+        </defs>
+        <!-- Host box -->
+        <rect x="10" y="14" width="320" height="176" rx="6" fill="#fffff8" stroke="#c8c4b4" stroke-width="1.5" />
+        <text x="26" y="36" font-family="-apple-system, sans-serif" font-size="11" font-weight="600" fill="#555550" letter-spacing="0.06em">HOST (homelab)</text>
+
+        <rect x="26" y="50" width="288" height="44" rx="4" fill="#f6efe9" stroke="#d8b9ac" />
+        <text x="170" y="69" text-anchor="middle" font-family="Georgia, serif" font-size="13" font-weight="600" fill="#111">orb attach → ssh + systemd-ssh-proxy</text>
+        <text x="170" y="85" text-anchor="middle" font-family="monospace" font-size="10.5" fill="#555">vsock-mux/run/orbs/slot1/vm/notify.vsock</text>
+
+        <line x1="170" y1="94" x2="170" y2="120" stroke="#9b3d20" stroke-width="1.5" marker-end="url(#arrow2)" />
+        <text x="178" y="111" font-family="monospace" font-size="10" fill="#9b3d20">CONNECT 22\n → fdpass</text>
+
+        <rect x="26" y="124" width="288" height="50" rx="4" fill="#f4f2e8" stroke="#c8c4b4" />
+        <text x="170" y="145" text-anchor="middle" font-family="Georgia, serif" font-size="13" font-weight="600" fill="#111">Cloud Hypervisor (AF_UNIX socket)</text>
+        <text x="170" y="162" text-anchor="middle" font-family="monospace" font-size="10.5" fill="#555">/run/orbs/slot1/vm/notify.vsock (0700)</text>
+
+        <!-- Boundary -->
+        <line x1="370" y1="8" x2="370" y2="196" stroke="#9b3d20" stroke-dasharray="4 4" stroke-width="1.2" />
+        <text x="370" y="126" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="10" font-weight="600" fill="#9b3d20">virtio-vsock</text>
+        <text x="370" y="139" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="10" font-weight="600" fill="#9b3d20">stream</text>
+        <line x1="316" y1="149" x2="424" y2="149" stroke="#9b3d20" stroke-width="1.8" marker-end="url(#arrow2)" marker-start="url(#arrow2)" />
+
+        <!-- Guest box -->
+        <rect x="410" y="14" width="300" height="176" rx="6" fill="#fffff8" stroke="#c8c4b4" stroke-width="1.5" />
+        <text x="426" y="36" font-family="-apple-system, sans-serif" font-size="11" font-weight="600" fill="#555550" letter-spacing="0.06em">GUEST MICROVM (orb1 · CID 11)</text>
+
+        <rect x="426" y="124" width="268" height="50" rx="4" fill="#f4f2e8" stroke="#c8c4b4" />
+        <text x="560" y="145" text-anchor="middle" font-family="Georgia, serif" font-size="13" font-weight="600" fill="#111">systemd sshd.socket (AF_VSOCK)</text>
+        <text x="560" y="162" text-anchor="middle" font-family="monospace" font-size="10.5" fill="#555">ListenStream = vsock::22 (no TCP!)</text>
+
+        <line x1="560" y1="124" x2="560" y2="98" stroke="#9b3d20" stroke-width="1.5" marker-end="url(#arrow2)" />
+
+        <rect x="426" y="50" width="268" height="44" rx="4" fill="#eef7f1" stroke="#a6cbb3" />
+        <text x="560" y="69" text-anchor="middle" font-family="Georgia, serif" font-size="13" font-weight="600" fill="#111">tmux session "main" (as user)</text>
+        <text x="560" y="85" text-anchor="middle" font-family="monospace" font-size="10.5" fill="#25603c">key: /run/orb-job/authorized_keys</text>
+      </svg>
+      <figcaption><code>orb attach</code> never touches <code>br-agent</code> or TCP/IP. <code>systemd-ssh-proxy</code> negotiates <code>CONNECT 22</code> over the host Unix socket and passes the live fd to <code>ssh</code>.</figcaption>
+    </figure>
+
+    <h2>2. The Three Architectural Trade-Offs</h2>
+
+    <h3>Trade-Off A: <code>AF_VSOCK</code> SSH vs. TCP SSH on <code>br-agent</code></h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Dimension</th>
+          <th><code>AF_VSOCK</code> Only <span class="chosen-badge">Chosen</span></th>
+          <th>TCP Port 22 on <code>10.240.0.(10+N)</code></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Attack surface</strong></td>
+          <td>Zero TCP ports listening inside the guest; sibling orbs on <code>br-agent</code> cannot reach each other's <code>sshd</code>.</td>
+          <td>Exposes TCP:22 on the bridge; requires extra <code>nftables</code> rules to stop orb-to-orb SSH probing.</td>
+        </tr>
+        <tr>
+          <td><strong>Failure isolation</strong></td>
+          <td>Works even when guest networking is down, misconfigured, or offline.</td>
+          <td>If <code>systemd-networkd</code> or the TAP fails, you lose SSH access too.</td>
+        </tr>
+        <tr>
+          <td><strong>Reachability</strong></td>
+          <td>Host-only (must SSH to <code>homelab</code> first, then <code>orb attach</code>, with <code>-L</code> for port forwarding).</td>
+          <td>Directly reachable over IP if routed or proxied via Caddy.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Trade-Off B: Hybrid <code>vsock</code> (<code>AF_UNIX</code>) vs. Kernel <code>vhost_vsock</code></h3>
+    <p>
+      Traditional QEMU/KVM uses the host kernel's <code>vhost_vsock</code> module, where host processes open real <code>AF_VSOCK</code> sockets addressed by global CID. Cloud Hypervisor's hybrid model maps each VM's vsock to a plain host Unix socket instead.<a class="cite" href="#ref-ch-vsock">[2]</a>
+    </p>
+    <ul>
+      <li><strong>What you gain:</strong> Standard Linux filesystem permissions (<code>/run/orbs/slot1/vm</code> is <code>0700</code> owned by <code>agent-vm</code>) govern who can connect; no host kernel <code>vhost_vsock</code> module needed; no risk of CID collisions across unrelated VMMs.</li>
+      <li><strong>What you pay:</strong> Standard <code>AF_VSOCK</code> host tools can't connect directly—the host client must understand the <code>CONNECT &lt;port&gt;\n</code> framing (which <code>systemd-ssh-proxy</code>'s <code>vsock-mux/</code> scheme solves natively).<a class="cite" href="#ref-ssh-proxy">[3]</a></li>
+    </ul>
+
+    <h3>Trade-Off C: Explicit <code>sshd.socket</code> + <code>systemd.ssh_auto=no</code> vs. Systemd Auto-Binding</h3>
+    <div class="callout">
+      <div class="callout-title">Why Two Lines in <code>agent-worker.nix</code> Matter</div>
+      Since systemd v256, <code>systemd-ssh-generator</code> automatically detects VMs with <code>AF_VSOCK</code> and binds its own <code>sshd-vsock.socket</code> to <code>vsock:22</code>.<a class="cite" href="#ref-ssh-gen">[4]</a> If left enabled, it collides with NixOS's <code>sshd.socket</code>—or silently accepts connections with systemd's default key handling instead of our locked-down <code>AllowUsers = ["user"]</code>, <code>PermitRootLogin = "no"</code>, and <code>/run/orb-job/authorized_keys</code>. Passing <code>systemd.ssh_auto=no</code> disables the generator, and <code>socketConfig.ListenStream = lib.mkForce ["vsock::22"]</code> replaces (rather than appends to) the default TCP <code>[::]:22</code> listener.
+    </div>
+
+    <h2>3. Retrieval Practice (Test Your Trade-Off Intuition)</h2>
+    <p>Answer from memory before checking the explanation.</p>
+
+    <section class="quiz-section" data-quiz>
+      <div class="quiz-card" data-explanation="AF_VSOCK bypasses Ethernet, IP, and firewall rules completely. The guest exposes zero TCP ports (so sibling orbs on br-agent can't probe sshd), and orb attach still works even if guest networking breaks.">
+        <div class="quiz-q">1. What is the main advantage of binding guest <code>sshd</code> exclusively to <code>AF_VSOCK</code> instead of TCP port 22 on <code>br-agent</code>?</div>
+        <div class="quiz-options">
+          <button class="quiz-opt" data-correct="false">Host firewall automatically forwards TCP packets to Unix sockets</button>
+          <button class="quiz-opt" data-correct="false">Guest kernel encrypts all SSH traffic inside virtiofsd buffers</button>
+          <button class="quiz-opt" data-correct="true">Out-of-band access works without TCP ports or guest networking</button>
+          <button class="quiz-opt" data-correct="false">Cloud Hypervisor disables Ethernet devices whenever vsock is enabled</button>
+        </div>
+        <div class="quiz-feedback"></div>
+      </div>
+
+      <div class="quiz-card" data-explanation="Cloud Hypervisor's hybrid vsock exposes a per-VM AF_UNIX socket on the host (with a CONNECT port handshake), so regular Unix directory permissions isolate access without requiring host kernel vhost_vsock or global CID coordination.">
+        <div class="quiz-q">2. Why does Cloud Hypervisor expose each VM's vsock on the host as a Unix socket (<code>notify.vsock</code>) instead of using host kernel <code>vhost_vsock</code>?</div>
+        <div class="quiz-options">
+          <button class="quiz-opt" data-correct="true">Host controls access via Unix socket permissions without vhost_vsock</button>
+          <button class="quiz-opt" data-correct="false">Host kernel broadcasts every vsock port across local Ethernet</button>
+          <button class="quiz-opt" data-correct="false">Guest sshd speaks raw HTTP directly to host systemd</button>
+          <button class="quiz-opt" data-correct="false">Cloud Hypervisor requires root privileges to open Unix sockets</button>
+        </div>
+        <div class="quiz-feedback"></div>
+      </div>
+
+      <div class="quiz-card" data-explanation="Systemd v256+ ships systemd-ssh-generator, which automatically binds its own sshd-vsock.socket to vsock:22 inside VMs. Setting systemd.ssh_auto=no ensures only NixOS's hardened sshd.socket owns vsock:22.">
+        <div class="quiz-q">3. Why does <code>agent-worker.nix</code> pass <code>systemd.ssh_auto=no</code> on the guest kernel command line?</div>
+        <div class="quiz-options">
+          <button class="quiz-opt" data-correct="false">Guest kernel refuses to boot when openssh is enabled</button>
+          <button class="quiz-opt" data-correct="false">Cloud Hypervisor drops vsock connections unless TCP stays open</button>
+          <button class="quiz-opt" data-correct="false">NixOS disables socket activation unless kernel disables all generators</button>
+          <button class="quiz-opt" data-correct="true">Built-in systemd generator otherwise binds vsock:22 with different rules</button>
+        </div>
+        <div class="quiz-feedback"></div>
+      </div>
+
+      <div class="quiz-scorebar">
+        <span data-quiz-score>Score: 0 / 3 (0 answered)</span>
+        <button class="quiz-reset" data-quiz-reset>Reset quiz</button>
+      </div>
+    </section>
+
+    <h2>Primary Source to Read Next</h2>
+    <p>
+      Skim <a href="https://www.freedesktop.org/software/systemd/man/latest/systemd-ssh-proxy.html"><code>systemd-ssh-proxy(1)</code></a> (1 page) to see all four URI prefixes (<code>unix/</code>, <code>vsock/</code>, <code>vsock-mux/</code>, <code>.host</code>) and how <code>ProxyUseFdpass=yes</code> avoids extra process hops.
+    </p>
+
+    <h2>Citations</h2>
+    <ol class="references-list">
+      <li id="ref-vsock"><a href="https://man7.org/linux/man-pages/man7/vsock.7.html">Linux Manual: vsock(7) — Linux VSOCK address family</a></li>
+      <li id="ref-ch-vsock"><a href="https://github.com/cloud-hypervisor/cloud-hypervisor/blob/main/docs/vsock.md">Cloud Hypervisor Docs: Hybrid virtio-vsock &amp; CONNECT handshake</a></li>
+      <li id="ref-ssh-proxy"><a href="https://www.freedesktop.org/software/systemd/man/latest/systemd-ssh-proxy.html">systemd Manual: systemd-ssh-proxy(1)</a></li>
+      <li id="ref-ssh-gen"><a href="https://www.freedesktop.org/software/systemd/man/latest/systemd-ssh-generator.html">systemd Manual: systemd-ssh-generator(8) &amp; systemd.ssh_auto</a></li>
+    </ol>
+
+    <div class="teacher-note">
+      <strong>Ask your teacher:</strong> Curious how <code>orb attach id -L 8080:localhost:8080</code> tunnels a web server out of an orb over vsock, or ready for <strong>Lesson 0003</strong> (TAP + <code>br-agent</code> + <code>isolation.nft</code> zero-trust egress)? Just ask in chat.
+    </div>
+  </main>
+
+  <script src="../assets/quiz.js"></script>
+</body>
+</html>

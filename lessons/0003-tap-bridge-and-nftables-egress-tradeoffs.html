@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 0003: TAP, Bridge &amp; nftables Egress Isolation Trade-Offs</title>
+  <link rel="stylesheet" href="../assets/lesson.css" />
+</head>
+<body>
+  <main class="page">
+    <header class="topbar">
+      <span>Lesson 0003 · MicroVM Orbs</span>
+      <nav>
+        <a href="./0002-hybrid-vsock-and-ssh-proxy-tradeoffs.html">← Lesson 0002</a>
+        <a href="../reference/microvm-orb-glossary.html">Glossary &amp; Matrix</a>
+      </nav>
+    </header>
+
+    <h1>TAP, <code>br-agent</code> &amp; <code>nftables</code> Zero-Trust Egress</h1>
+    <p class="subtitle">How an orb reaches GitHub and Google APIs while remaining completely blind to your LAN, Tailnet, and host services—and why <code>nixos-rebuild switch</code> doesn't drop its network.</p>
+
+    <div class="meta-strip">
+      <strong>Mission tie-in:</strong> Enforcing hard network isolation boundaries declaratively without brittle side effects on <code>nixos-rebuild switch</code> (<code>ADR-0005</code> / <code>ADR-0006</code>). &nbsp;·&nbsp; <strong>Reading time:</strong> ~5 min + 3 retrieval checks.
+    </div>
+
+    <h2>1. The Packet Path Out of an Orb</h2>
+    <p>
+      Each orb slot plugs into a virtual Layer-2 Ethernet cable called a <strong>TAP device</strong> (<code>tap-orb1</code>..<code>tap-orb4</code>, created with <code>multi_queue</code> for parallel TX/RX queues<a class="cite" href="#ref-tuntap">[1]</a>). All four TAPs are bridged into a single isolated host switch, <strong><code>br-agent</code></strong> (<code>10.240.0.1/24</code>), with guest IPs <code>10.240.0.11</code>..<code>14</code> and public DNS only (<code>1.1.1.1</code>, <code>9.9.9.9</code>).
+    </p>
+    <p>
+      The guest itself has <code>networking.firewall.enable = false</code>—the <strong>host kernel</strong> is the sole security boundary, enforced by <code>table inet agent-isolation</code> in <code>isolation.nft</code>:<a class="cite" href="#ref-nft">[2]</a>
+    </p>
+
+    <figure>
+      <svg viewBox="0 0 720 220" role="img" aria-label="Diagram showing packets leaving orb1 through tap-orb1 and br-agent into nftables input, forward, and postrouting hooks">
+        <defs>
+          <marker id="arrow3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="#9b3d20" />
+          </marker>
+        </defs>
+        <!-- Guest -->
+        <rect x="10" y="64" width="145" height="84" rx="6" fill="#f6efe9" stroke="#d8b9ac" stroke-width="1.5" />
+        <text x="82" y="90" text-anchor="middle" font-family="Georgia, serif" font-size="13" font-weight="600" fill="#111">orb1 (Guest)</text>
+        <text x="82" y="109" text-anchor="middle" font-family="monospace" font-size="10.5" fill="#555">10.240.0.11/24</text>
+        <text x="82" y="126" text-anchor="middle" font-family="monospace" font-size="10" fill="#555">DNS: 1.1.1.1, 9.9.9.9</text>
+
+        <line x1="155" y1="106" x2="195" y2="106" stroke="#9b3d20" stroke-width="1.6" marker-end="url(#arrow3)" />
+        <text x="175" y="98" text-anchor="middle" font-family="monospace" font-size="9.5" fill="#9b3d20">tap-orb1</text>
+
+        <!-- Bridge -->
+        <rect x="198" y="64" width="115" height="84" rx="6" fill="#f4f2e8" stroke="#c8c4b4" stroke-width="1.5" />
+        <text x="255" y="94" text-anchor="middle" font-family="Georgia, serif" font-size="13" font-weight="600" fill="#111">br-agent</text>
+        <text x="255" y="113" text-anchor="middle" font-family="monospace" font-size="10.5" fill="#555">10.240.0.1/24</text>
+        <text x="255" y="130" text-anchor="middle" font-family="monospace" font-size="9.5" fill="#555">unmanaged by NM</text>
+
+        <!-- Branch to INPUT (drop) -->
+        <line x1="313" y1="84" x2="365" y2="42" stroke="#96281b" stroke-width="1.5" marker-end="url(#arrow3)" />
+        <rect x="368" y="12" width="340" height="54" rx="5" fill="#fdf1ef" stroke="#d9a59e" />
+        <text x="382" y="33" font-family="-apple-system, sans-serif" font-size="11" font-weight="600" fill="#96281b">hook input (priority filter - 10)</text>
+        <text x="382" y="51" font-family="monospace" font-size="10.5" fill="#111">iifname "br-agent" drop  # Never reach host services</text>
+
+        <!-- Branch to FORWARD -->
+        <line x1="313" y1="118" x2="365" y2="128" stroke="#9b3d20" stroke-width="1.5" marker-end="url(#arrow3)" />
+        <rect x="368" y="78" width="340" height="78" rx="5" fill="#fffff8" stroke="#c8c4b4" stroke-width="1.5" />
+        <text x="382" y="98" font-family="-apple-system, sans-serif" font-size="11" font-weight="600" fill="#555550">hook forward (priority filter - 10)</text>
+        <text x="382" y="116" font-family="monospace" font-size="10" fill="#96281b">drop IPv6 · drop @blocked_v4 (LAN/Tailnet/10.0.0.0/8)</text>
+        <text x="382" y="132" font-family="monospace" font-size="10" fill="#25603c">accept DNS (1.1.1.1,9.9.9.9:53) · TCP 22,80,443 · UDP 123</text>
+        <text x="382" y="147" font-family="monospace" font-size="10" fill="#96281b">drop everything else (e.g. ICMP ping)</text>
+
+        <!-- Postrouting -->
+        <line x1="538" y1="156" x2="538" y2="174" stroke="#25603c" stroke-width="1.5" marker-end="url(#arrow3)" />
+        <rect x="368" y="176" width="340" height="34" rx="5" fill="#eef7f1" stroke="#a6cbb3" />
+        <text x="538" y="197" text-anchor="middle" font-family="monospace" font-size="10.5" fill="#25603c">hook postrouting (srcnat): masquerade → WAN</text>
+      </svg>
+      <figcaption>Because <code>forward</code> ends with an explicit drop after allowing only DNS, TCP 22/80/443, and NTP, our <code>ping 1.1.1.1</code> earlier dropped 100% of packets while <code>curl https://github.com</code> returned <code>HTTP/2 200</code>.</figcaption>
+    </figure>
+
+    <h2>2. The Three Architectural Trade-Offs</h2>
+
+    <h3>Trade-Off A: Standalone <code>table inet agent-isolation</code> vs. Extending NixOS's Main Firewall</h3>
+    <p>
+      Why does <code>isolation.nft</code> load its own <code>nftables</code> table at <code>priority filter - 10</code> instead of appending rules to NixOS's regular firewall?
+    </p>
+    <ul>
+      <li><strong>Non-overridable drops:</strong> Netfilter evaluates <em>every</em> base chain attached to a hook across all tables, and a <code>drop</code> verdict in any base chain is <strong>final</strong>.<a class="cite" href="#ref-nft">[2]</a> Even if another service or firewall reload opens a port in NixOS's main table, it can never punch a hole through <code>agent-isolation</code>.</li>
+      <li><strong>Fail-closed preflight:</strong> Before booting any orb, <code>orb.sh</code> checks <code>nft list table inet agent-isolation</code>. If the table isn't loaded, the VM refuses to start.</li>
+      <li><strong>Trade-off:</strong> Two firewall mechanisms coexist on the host (NixOS's main firewall + <code>isolation.nft</code>), so debugging drops requires checking <code>sudo nft list table inet agent-isolation</code> (which conveniently includes live per-rule packet counters).</li>
+    </ul>
+
+    <h3>Trade-Off B: Kernel TAP + Bridge + NAT vs. Userspace Networking (<code>slirp</code> / <code>gvproxy</code>)</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Dimension</th>
+          <th>Kernel TAP + <code>br-agent</code> + NAT <span class="chosen-badge">Chosen</span></th>
+          <th>Userspace Proxy (<code>slirp</code> / <code>gvproxy</code>)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Enforcement</strong></td>
+          <td>Kernel Netfilter filters every packet by <code>iifname "br-agent"</code> before routing.</td>
+          <td>Policy lives in userspace proxy code; harder to audit with standard <code>nft</code> counters.</td>
+        </tr>
+        <tr>
+          <td><strong>Throughput &amp; IPs</strong></td>
+          <td>Native kernel forwarding + deterministic per-slot IPs (<code>10.240.0.11..14</code>).</td>
+          <td>Extra userspace copies per packet; no host-visible per-slot bridge IP.</td>
+        </tr>
+        <tr>
+          <td><strong>Privilege cost</strong></td>
+          <td>Requires a root-owned oneshot unit to create <code>br-agent</code> and pre-allocate TAPs for <code>agent-vm</code>.</td>
+          <td>Runs completely unprivileged with zero host network setup.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Trade-Off C: <code>reloadIfChanged = true</code> vs. Standard Service Restart</h3>
+    <div class="callout">
+      <div class="callout-title">Why Running Orbs Survive <code>nixos-rebuild switch</code></div>
+      In <code>agent-dispatcher.nix</code>, <code>agent-dispatcher-network.service</code> has a <code>preStop</code> hook that deletes <code>tap-orb1..4</code> and <code>br-agent</code>. If NixOS restarted that unit on a config change, <code>preStop</code> would yank the TAP devices out from under every running orb! Setting <code>reloadIfChanged = true</code> with an idempotent <code>reload = networkScript</code> (<code>ip link show ... || ip tuntap add ...</code> plus atomic <code>nft -f isolation.nft</code>) re-applies rules cleanly while keeping every live TAP fd intact.
+    </div>
+
+    <h2>3. Retrieval Practice (Test Your Trade-Off Intuition)</h2>
+    <p>Answer from memory before checking the explanation.</p>
+
+    <section class="quiz-section" data-quiz>
+      <div class="quiz-card" data-explanation="Netfilter evaluates every table's base chains registered on a hook, and a drop verdict in any base chain is final. Keeping agent-isolation in its own table guarantees no other NixOS firewall rule can accidentally open a hole to homelab or the LAN.">
+        <div class="quiz-q">1. Why is loading <code>table inet agent-isolation</code> as a separate nftables table safer than mixing orb rules into NixOS's main firewall?</div>
+        <div class="quiz-options">
+          <button class="quiz-opt" data-correct="false">Host bridge drops all packets whenever iptables stays enabled</button>
+          <button class="quiz-opt" data-correct="true">Netfilter runs every table and any drop is final</button>
+          <button class="quiz-opt" data-correct="false">NixOS merges separate nftables files into one kernel chain</button>
+          <button class="quiz-opt" data-correct="false">Cloud Hypervisor parses nftables rules before opening TAP devices</button>
+        </div>
+        <div class="quiz-feedback"></div>
+      </div>
+
+      <div class="quiz-card" data-explanation="The forward chain in isolation.nft explicitly accepts only DNS to 1.1.1.1/9.9.9.9 (port 53), TCP ports 22/80/443, and UDP port 123 (NTP), then drops everything else—including ICMP echo requests.">
+        <div class="quiz-q">2. During our live test on <code>homelab</code>, why did <code>ping 1.1.1.1</code> fail with 100% packet loss while <code>curl https://github.com</code> returned <code>HTTP/2 200</code>?</div>
+        <div class="quiz-options">
+          <button class="quiz-opt" data-correct="false">Host bridge blocks outbound traffic to all public resolvers</button>
+          <button class="quiz-opt" data-correct="false">Guest kernel disables ICMP sockets inside every microVM slot</button>
+          <button class="quiz-opt" data-correct="false">Cloud Hypervisor strips ICMP frames from multi-queue TAP devices</button>
+          <button class="quiz-opt" data-correct="true">Forward chain only permits DNS, HTTP, HTTPS, SSH, NTP</button>
+        </div>
+        <div class="quiz-feedback"></div>
+      </div>
+
+      <div class="quiz-card" data-explanation="A normal systemd restart executes preStop (which deletes tap-orb1..4 and br-agent), severing running orbs' network interfaces. Using reloadIfChanged = true runs the idempotent networkScript without touching existing TAPs.">
+        <div class="quiz-q">3. Why does <code>agent-dispatcher-network.service</code> use <code>reloadIfChanged = true</code> instead of a normal systemd restart on <code>nixos-rebuild switch</code>?</div>
+        <div class="quiz-options">
+          <button class="quiz-opt" data-correct="true">Restarting runs preStop and deletes TAPs under live orbs</button>
+          <button class="quiz-opt" data-correct="false">Reloading forces Cloud Hypervisor to re-read static MAC addresses</button>
+          <button class="quiz-opt" data-correct="false">Systemd refuses to restart oneshot services using nftables rules</button>
+          <button class="quiz-opt" data-correct="false">Linux bridge drivers lock TAP devices during kernel upgrades</button>
+        </div>
+        <div class="quiz-feedback"></div>
+      </div>
+
+      <div class="quiz-scorebar">
+        <span data-quiz-score>Score: 0 / 3 (0 answered)</span>
+        <button class="quiz-reset" data-quiz-reset>Reset quiz</button>
+      </div>
+    </section>
+
+    <h2>Primary Source to Read Next</h2>
+    <p>
+      Read <a href="https://wiki.nftables.org/wiki-nftables/index.php/Configuring_chains">nftables Wiki: Configuring Chains</a> — pay close attention to the section on <em>Base chain priority</em> and how multiple base chains on the same hook interact when one issues <code>drop</code> vs. <code>accept</code>.
+    </p>
+
+    <h2>Citations</h2>
+    <ol class="references-list">
+      <li id="ref-tuntap"><a href="https://docs.kernel.org/networking/tuntap.html">Linux Kernel Documentation: Universal TUN/TAP Device Driver (TAP &amp; Multiqueue)</a></li>
+      <li id="ref-nft"><a href="https://wiki.nftables.org/wiki-nftables/index.php/Configuring_chains">nftables Wiki: Configuring Chains, Hooks, and Priorities</a></li>
+    </ol>
+
+    <div class="teacher-note">
+      <strong>Ask your teacher:</strong> Want to explore how sibling orbs on <code>br-agent</code> could be isolated from each other (Layer-2 bridge hairpins / per-orb nftables sets), or ready for <strong>Lesson 0004</strong> (<code>/nix/store</code> tmpfs overlay + <code>orb.sh</code> concurrency &amp; ZFS trash GC)? Just ask in chat.
+    </div>
+  </main>
+
+  <script src="../assets/quiz.js"></script>
+</body>
+</html>

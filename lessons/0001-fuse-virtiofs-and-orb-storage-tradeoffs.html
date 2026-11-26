@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 0001: FUSE, virtiofs &amp; Orb Storage Trade-Offs</title>
+  <link rel="stylesheet" href="../assets/lesson.css" />
+</head>
+<body>
+  <main class="page">
+    <header class="topbar">
+      <span>Lesson 0001 · MicroVM Orbs</span>
+      <nav>
+        <a href="../reference/microvm-orb-glossary.html">Glossary &amp; Matrix</a>
+        <a href="./0002-hybrid-vsock-and-ssh-proxy-tradeoffs.html">Next: Lesson 0002 →</a>
+      </nav>
+    </header>
+
+    <h1>FUSE, <code>virtiofs</code> &amp; Orb Storage Trade-Offs</h1>
+    <p class="subtitle">Why your homelab orbs share ZFS datasets over FUSE, why UID 2000 mattered, and why "pause" is a clean cold poweroff.</p>
+
+    <div class="meta-strip">
+      <strong>Mission tie-in:</strong> Structuring reusable NixOS modules across diverse storage models without leaky abstractions (<code>ADR-0006</code> on <code>homelab</code>). &nbsp;·&nbsp; <strong>Reading time:</strong> ~5 min + 3 retrieval checks.
+    </div>
+
+    <h2>1. What FUSE Actually Is</h2>
+    <p>
+      Normally, a Linux filesystem driver (like <code>ext4</code> or <code>ZFS</code>) runs <strong>inside the kernel</strong>. When a process calls <code>open()</code> or <code>read()</code>, the kernel talks straight to the disk driver.
+    </p>
+    <p>
+      <strong>FUSE</strong> (<em>Filesystem in Userspace</em>) splits that in two: the kernel keeps a minimal stub filesystem and forwards every file operation as a message to a <strong>regular userspace daemon</strong>.<a class="cite" href="#ref-fuse">[1]</a> That daemon can back the files with anything—an SSH server (<code>sshfs</code>), an S3 bucket, or a directory on a VM host.
+    </p>
+    <p>
+      <strong><code>virtiofs</code></strong> takes the exact same FUSE protocol and replaces local <code>/dev/fuse</code> with a <strong>shared-memory virtqueue</strong> crossing the VM boundary.<a class="cite" href="#ref-virtiofs">[2]</a> The guest kernel acts as the FUSE client; <code>virtiofsd</code> on <code>homelab</code> acts as the FUSE server.
+    </p>
+
+    <figure>
+      <svg viewBox="0 0 720 200" role="img" aria-label="Diagram showing FUSE requests flowing from guest app through guest kernel virtiofs over shared memory to host virtiofsd and ZFS">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="#9b3d20" />
+          </marker>
+        </defs>
+        <!-- Guest box -->
+        <rect x="10" y="14" width="300" height="172" rx="6" fill="#fffff8" stroke="#c8c4b4" stroke-width="1.5" />
+        <text x="26" y="36" font-family="-apple-system, sans-serif" font-size="11" font-weight="600" fill="#555550" letter-spacing="0.06em">GUEST MICROVM (orb1)</text>
+
+        <rect x="26" y="50" width="268" height="44" rx="4" fill="#f6efe9" stroke="#d8b9ac" />
+        <text x="160" y="69" text-anchor="middle" font-family="Georgia, serif" font-size="13" font-weight="600" fill="#111">agy / git (uid 2000)</text>
+        <text x="160" y="85" text-anchor="middle" font-family="monospace" font-size="11" fill="#555">open("/home/user/nixos-config")</text>
+
+        <line x1="160" y1="94" x2="160" y2="118" stroke="#9b3d20" stroke-width="1.5" marker-end="url(#arrow)" />
+
+        <rect x="26" y="122" width="268" height="48" rx="4" fill="#f4f2e8" stroke="#c8c4b4" />
+        <text x="160" y="143" text-anchor="middle" font-family="Georgia, serif" font-size="13" font-weight="600" fill="#111">Guest Kernel (virtiofs / FUSE client)</text>
+        <text x="160" y="160" text-anchor="middle" font-family="monospace" font-size="11" fill="#555">holds cached inode nodeids &amp; handles</text>
+
+        <!-- Boundary -->
+        <line x1="360" y1="8" x2="360" y2="192" stroke="#9b3d20" stroke-dasharray="4 4" stroke-width="1.2" />
+        <text x="360" y="100" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="10" font-weight="600" fill="#9b3d20">FUSE over</text>
+        <text x="360" y="113" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="10" font-weight="600" fill="#9b3d20">virtqueue</text>
+        <line x1="296" y1="146" x2="420" y2="146" stroke="#9b3d20" stroke-width="1.8" marker-end="url(#arrow)" marker-start="url(#arrow)" />
+
+        <!-- Host box -->
+        <rect x="410" y="14" width="300" height="172" rx="6" fill="#fffff8" stroke="#c8c4b4" stroke-width="1.5" />
+        <text x="426" y="36" font-family="-apple-system, sans-serif" font-size="11" font-weight="600" fill="#555550" letter-spacing="0.06em">HOST (homelab)</text>
+
+        <rect x="426" y="122" width="268" height="48" rx="4" fill="#f4f2e8" stroke="#c8c4b4" />
+        <text x="560" y="143" text-anchor="middle" font-family="Georgia, serif" font-size="13" font-weight="600" fill="#111">virtiofsd (agent-vm, uid 2000)</text>
+        <text x="560" y="160" text-anchor="middle" font-family="monospace" font-size="11" fill="#555">--sandbox=none · in-memory inode table</text>
+
+        <line x1="560" y1="122" x2="560" y2="98" stroke="#9b3d20" stroke-width="1.5" marker-end="url(#arrow)" />
+
+        <rect x="426" y="50" width="268" height="44" rx="4" fill="#eef7f1" stroke="#a6cbb3" />
+        <text x="560" y="69" text-anchor="middle" font-family="Georgia, serif" font-size="13" font-weight="600" fill="#111">Host Kernel (ZFS)</text>
+        <text x="560" y="85" text-anchor="middle" font-family="monospace" font-size="11" fill="#25603c">rpool/orbs/nixos-config (20G quota)</text>
+      </svg>
+      <figcaption>Every file read or write inside <code>/home/user</code> crosses the VM boundary as a FUSE request, is executed by <code>virtiofsd</code> as <code>agent-vm</code>, and lands directly on the host ZFS dataset.</figcaption>
+    </figure>
+
+    <h2>2. The Three Architectural Trade-Offs</h2>
+    <p>
+      Knowing that <code>virtiofs</code> is a stateful FUSE bridge explains all three major storage decisions in <code>ADR-0006</code>.
+    </p>
+
+    <h3>Trade-Off A: ZFS Dataset + <code>virtiofs</code> vs. ZFS ZVOL + <code>virtio-blk</code></h3>
+    <p>
+      OpenZFS offers two dataset kinds: a <strong>filesystem dataset</strong> (POSIX directory tree) and a <strong>ZVOL</strong> (a raw block device at <code>/dev/zvol/...</code>).<a class="cite" href="#ref-zfs">[4]</a>
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Dimension</th>
+          <th>ZFS Dataset + <code>virtiofs</code> <span class="chosen-badge">Chosen</span></th>
+          <th>ZFS ZVOL + <code>virtio-blk</code></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Host visibility</strong></td>
+          <td>Host can read, <code>git diff</code>, and copy files live while the orb runs.</td>
+          <td>Guest owns an opaque <code>ext4</code>/<code>xfs</code> block device; host mounting it live causes corruption.</td>
+        </tr>
+        <tr>
+          <td><strong>Isolation boundary</strong></td>
+          <td>Wider: guest sends rich FUSE syscalls parsed by <code>virtiofsd</code> on host.</td>
+          <td>Narrower: guest only reads/writes numbered disk blocks.</td>
+        </tr>
+        <tr>
+          <td><strong>Space &amp; tuning</strong></td>
+          <td>Dynamic <code>recordsize</code>; consumes only bytes written (capped by <code>quota=20G</code>).</td>
+          <td>Fixed <code>volblocksize</code> set at creation; thick-provisioned unless sparse (<code>-s</code>).</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>
+      <strong>Why this won:</strong> On a single-user homelab, inspecting a stuck agent's workspace directly from the host is huge leverage—and <code>ADR-0005</code> already accepted the <code>virtiofs</code> trust boundary for sharing <code>/nix/.ro-store</code>.
+    </p>
+
+    <h3>Trade-Off B: Clean Poweroff vs. RAM Snapshot/Restore</h3>
+    <p>
+      Why did our resume take ~8 seconds (cold Linux + NixOS boot) instead of &lt;500 ms via <code>cloud-hypervisor</code> snapshot/restore?
+    </p>
+    <p>
+      Because <strong>FUSE is stateful</strong>. The guest kernel holds cached <code>nodeid</code>s and open file descriptors that only have meaning inside the running <code>virtiofsd</code> process's in-memory table.<a class="cite" href="#ref-migration">[3]</a> If you snapshot VM RAM and stop <code>virtiofsd</code>, restoring that RAM against a fresh <code>virtiofsd</code> breaks every open file unless the hypervisor and <code>virtiofsd</code> coordinate explicit <code>DEVICE_STATE</code> serialization (<code>find-paths</code> or <code>file-handles</code>).<a class="cite" href="#ref-migration">[3]</a>
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Pause Strategy</th>
+          <th>Resume Speed</th>
+          <th>RAM Held While Paused</th>
+          <th>Complexity / Failure Mode</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Clean <code>poweroff</code></strong> <span class="chosen-badge">Chosen</span></td>
+          <td>~8s cold boot</td>
+          <td>0 MB (slot freed)</td>
+          <td>Lowest: ZFS unmounts cleanly; any free slot can resume it.</td>
+        </tr>
+        <tr>
+          <td><strong>CH <code>pause</code></strong></td>
+          <td>Instant</td>
+          <td>Full 4 GB + slot</td>
+          <td>Defeats the 4-slot cap; can't keep 20 idle repos paused.</td>
+        </tr>
+        <tr>
+          <td><strong>RAM <code>snapshot</code></strong></td>
+          <td>&lt;1s</td>
+          <td>0 MB (4 GB on disk)</td>
+          <td>High: requires verified <code>DEVICE_STATE</code> in both CH and <code>virtiofsd</code>; stale FUSE handles silently break if omitted.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Trade-Off C: Pinned UID <code>2000</code> + <code>--sandbox=none</code> vs. Namespace UID Mapping</h3>
+    <p>
+      When we first deployed to <code>homelab</code>, NixOS warned it wouldn't change existing <code>agent-vm</code> from UID <code>975</code> to <code>2000</code>. Because <code>agent-vm-launcher.nix</code> runs <code>virtiofsd --sandbox=none</code> as unprivileged <code>agent-vm</code>, <code>virtiofsd</code> exposes host files with their <strong>real numeric UID/GID</strong>.
+    </p>
+    <div class="callout">
+      <div class="callout-title">The Security Seam</div>
+      <code>virtiofsd</code>'s default <code>--sandbox=namespace</code> uses <code>pivot_root(2)</code> to jail the daemon inside the shared directory,<a class="cite" href="#ref-virtiofsd">[5]</a> which requires user namespaces or root privileges. Running unprivileged as <code>agent-vm</code> with <code>--sandbox=none</code> is simpler and relies on Linux DAC permissions (<code>agent-vm</code> can only read/write paths owned by UID 2000 or world-readable like <code>/nix/store</code>). The trade-off: guest <code>user</code> and host <code>agent-vm</code> <em>must</em> share the exact same numeric UID/GID (<code>2000</code>).
+    </div>
+
+    <h2>3. Retrieval Practice (Test Your Trade-Off Intuition)</h2>
+    <p>Pick the best answer for each scenario before checking the explanation. See the <a href="../reference/microvm-orb-glossary.html">Glossary</a> only after trying from memory.</p>
+
+    <section class="quiz-section" data-quiz>
+      <div class="quiz-card" data-explanation="FUSE is stateful: the guest kernel caches nodeids and open file handles mapped to virtiofsd's in-memory table. Without verified DEVICE_STATE serialization across both Cloud Hypervisor and virtiofsd, a restored VM holds stale FUSE handles.">
+        <div class="quiz-q">1. Why did ADR-0006 reject Cloud Hypervisor RAM snapshots in favor of a clean 8-second poweroff?</div>
+        <div class="quiz-options">
+          <button class="quiz-opt" data-correct="false">Host ZFS cannot mount datasets while hypervisor processes run</button>
+          <button class="quiz-opt" data-correct="true">Guest holds cached FUSE inode handles unknown after restart</button>
+          <button class="quiz-opt" data-correct="false">Cloud Hypervisor refuses to snapshot guests using KVM devices</button>
+          <button class="quiz-opt" data-correct="false">Linux kernel strips virtqueue memory buffers during RAM writes</button>
+        </div>
+        <div class="quiz-feedback"></div>
+      </div>
+
+      <div class="quiz-card" data-explanation="A ZVOL is a raw block device formatted by the guest (e.g., ext4). Mounting a block filesystem from both host and guest simultaneously corrupts it, whereas virtiofs lets the host own ZFS and inspect or git-diff the workspace live.">
+        <div class="quiz-q">2. What key operational workflow do you lose if you switch orb workspaces from ZFS datasets + virtiofs to ZVOLs + virtio-blk?</div>
+        <div class="quiz-options">
+          <button class="quiz-opt" data-correct="false">Guest kernel drops all writes when host uses ZFS</button>
+          <button class="quiz-opt" data-correct="false">Host cannot run ZFS snapshots on block volume datasets</button>
+          <button class="quiz-opt" data-correct="true">Host cannot safely mount guest filesystems while VM runs</button>
+          <button class="quiz-opt" data-correct="false">Cloud Hypervisor lacks block device drivers for Linux guests</button>
+        </div>
+        <div class="quiz-feedback"></div>
+      </div>
+
+      <div class="quiz-card" data-explanation="With virtiofsd running as agent-vm under --sandbox=none, stat() returns the host's numeric UID/GID and new files are created as agent-vm. Matching host agent-vm and guest user at 2000 keeps permissions aligned on both sides.">
+        <div class="quiz-q">3. Why did leaving host user <code>agent-vm</code> at UID 975 break workspace ownership inside the orb?</div>
+        <div class="quiz-options">
+          <button class="quiz-opt" data-correct="true">Host daemon exposes real numeric file ownership across shares</button>
+          <button class="quiz-opt" data-correct="false">Linux kernel requires every virtiofs mount use user 2000</button>
+          <button class="quiz-opt" data-correct="false">ZFS datasets reject legacy mountpoints for lower system UIDs</button>
+          <button class="quiz-opt" data-correct="false">Cloud Hypervisor refuses TAP devices owned below UID 2000</button>
+        </div>
+        <div class="quiz-feedback"></div>
+      </div>
+
+      <div class="quiz-scorebar">
+        <span data-quiz-score>Score: 0 / 3 (0 answered)</span>
+        <button class="quiz-reset" data-quiz-reset>Reset quiz</button>
+      </div>
+    </section>
+
+    <h2>Primary Source to Read Next</h2>
+    <p>
+      Read the official <a href="https://docs.kernel.org/filesystems/virtiofs.html">Linux Kernel <code>virtiofs</code> documentation</a> (2 pages) — it explains in plain prose how <code>virtiofs</code> replaces <code>/dev/fuse</code> with virtqueues and how the guest/host split works. If you want to go one layer deeper on why snapshots are tricky, skim <a href="https://gitlab.com/virtio-fs/virtiofsd/-/blob/main/doc/migration.md"><code>virtiofsd/doc/migration.md</code></a>.
+    </p>
+
+    <h2>Citations</h2>
+    <ol class="references-list">
+      <li id="ref-fuse"><a href="https://docs.kernel.org/filesystems/fuse.html">Linux Kernel Documentation: FUSE (Filesystem in Userspace)</a></li>
+      <li id="ref-virtiofs"><a href="https://docs.kernel.org/filesystems/virtiofs.html">Linux Kernel Documentation: virtiofs — Shared File System</a></li>
+      <li id="ref-migration"><a href="https://gitlab.com/virtio-fs/virtiofsd/-/blob/main/doc/migration.md">virtiofsd Documentation: Live Migration &amp; Inode State Transfer</a></li>
+      <li id="ref-zfs"><a href="https://openzfs.github.io/openzfs-docs/man/master/7/zfsconcepts.7.html">OpenZFS Manual: zfsconcepts(7) — Filesystems and Volumes (ZVOLs)</a></li>
+      <li id="ref-virtiofsd"><a href="https://gitlab.com/virtio-fs/virtiofsd">virtiofsd Repository: Sandboxing Modes &amp; Options</a></li>
+    </ol>
+
+    <div class="teacher-note">
+      <strong>Ask your teacher:</strong> Anything fuzzy about FUSE, <code>--sandbox=none</code>, or ZVOL vs. dataset trade-offs? Ask me follow-up questions in chat — or tell me when you're ready for <strong>Lesson 0002</strong> (Hybrid <code>vsock</code> SSH vs. TCP, or TAP + <code>nftables</code> zero-trust egress isolation).
+    </div>
+  </main>
+
+  <script src="../assets/quiz.js"></script>
+</body>
+</html>

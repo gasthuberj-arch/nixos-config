@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reference: MicroVM Orb Storage &amp; FUSE Glossary</title>
+  <link rel="stylesheet" href="../assets/lesson.css" />
+</head>
+<body>
+  <main class="page">
+    <header class="topbar">
+      <span>Reference Sheet · MicroVM Orbs</span>
+      <nav>
+        <a href="../lessons/0001-fuse-virtiofs-and-orb-storage-tradeoffs.html">Lesson 0001</a>
+        <a href="../lessons/0002-hybrid-vsock-and-ssh-proxy-tradeoffs.html">Lesson 0002</a>
+        <a href="../lessons/0003-tap-bridge-and-nftables-egress-tradeoffs.html">Lesson 0003</a>
+      </nav>
+    </header>
+
+    <h1>MicroVM Orb Storage &amp; FUSE Glossary</h1>
+    <p class="subtitle">Compressed reference for the storage and isolation primitives in ADR-0005 &amp; ADR-0006.</p>
+
+    <h2>Core Terms</h2>
+    <dl>
+      <div class="glossary-term">
+        <dt>FUSE (Filesystem in Userspace)</dt>
+        <dd>A Linux kernel mechanism that delegates filesystem syscalls (<code>open</code>, <code>read</code>, <code>write</code>, <code>stat</code>) from the kernel to a regular userspace daemon rather than an in-kernel filesystem driver. Stateful: the kernel and daemon share numeric <code>nodeid</code>s and open file handles. (<a href="https://docs.kernel.org/filesystems/fuse.html">kernel docs</a>)</dd>
+      </div>
+
+      <div class="glossary-term">
+        <dt>virtiofs</dt>
+        <dd>A paravirtualized shared filesystem for VMs built on the FUSE protocol. Instead of passing FUSE messages over local <code>/dev/fuse</code>, the guest kernel sends them over shared-memory <strong>virtqueues</strong> to a host daemon (<code>virtiofsd</code>). (<a href="https://docs.kernel.org/filesystems/virtiofs.html">kernel docs</a>)</dd>
+      </div>
+
+      <div class="glossary-term">
+        <dt>virtiofsd</dt>
+        <dd>The host-side Rust userspace FUSE server that receives guest <code>virtiofs</code> requests and performs real syscalls against an exported host directory. Supports <code>--sandbox=namespace</code> (isolated root via <code>pivot_root</code>), <code>chroot</code>, or <code>none</code>. (<a href="https://gitlab.com/virtio-fs/virtiofsd">virtiofsd repo</a>)</dd>
+      </div>
+
+      <div class="glossary-term">
+        <dt>ZFS Filesystem Dataset vs. ZVOL</dt>
+        <dd>A <strong>filesystem dataset</strong> (<code>zfs create rpool/orbs/id</code>) is a POSIX directory tree with dynamic <code>recordsize</code>; the host mounts and inspects it directly. A <strong>ZVOL</strong> (<code>zfs create -V 20G ...</code>) is a raw block device (<code>/dev/zvol/...</code>) with fixed <code>volblocksize</code>, typically attached to a VM via <code>virtio-blk</code> where the guest formats its own <code>ext4</code>/<code>xfs</code>. (<a href="https://openzfs.github.io/openzfs-docs/man/master/7/zfsconcepts.7.html">OpenZFS docs</a>)</dd>
+      </div>
+
+      <div class="glossary-term">
+        <dt>DEVICE_STATE / virtiofsd Migration</dt>
+        <dd>The protocol required to snapshot or live-migrate a VM using <code>virtiofs</code>: <code>virtiofsd</code> must serialize its in-memory table of guest-opened inodes (via <code>find-paths</code> or <code>file-handles</code>) so a restored VM's cached FUSE handles remain valid. (<a href="https://gitlab.com/virtio-fs/virtiofsd/-/blob/main/doc/migration.md">migration.md</a>)</dd>
+      </div>
+
+      <div class="glossary-term">
+        <dt>tmpfs Overlay</dt>
+        <dd>A RAM-only filesystem mounted either as an <code>overlayfs</code> upper layer (<code>/nix/store</code> over read-only <code>/nix/.ro-store</code>) or directly over a sensitive subdirectory (<code>/home/user/.gemini</code>) so writes never reach persistent host storage.</dd>
+      </div>
+
+      <div class="glossary-term">
+        <dt>AF_VSOCK &amp; CID</dt>
+        <dd>A Linux socket address family for direct VM-to-host communication without Ethernet, IP, or firewalls. Addresses consist of a 32-bit <strong>Context Identifier (CID)</strong> plus a 32-bit port number. (<a href="https://man7.org/linux/man-pages/man7/vsock.7.html">vsock(7)</a>)</dd>
+      </div>
+
+      <div class="glossary-term">
+        <dt>Hybrid vsock (Cloud Hypervisor / Firecracker)</dt>
+        <dd>Exposes standard <code>AF_VSOCK</code> inside the guest while presenting a plain <code>AF_UNIX</code> socket on the host (<code>notify.vsock</code>). Host clients select a guest port by sending <code>CONNECT &lt;port&gt;\n</code> before streaming data, using standard Unix file permissions instead of host kernel <code>vhost_vsock</code>. (<a href="https://github.com/cloud-hypervisor/cloud-hypervisor/blob/main/docs/vsock.md">CH vsock.md</a>)</dd>
+      </div>
+
+      <div class="glossary-term">
+        <dt>systemd-ssh-proxy &amp; systemd-ssh-generator</dt>
+        <dd>Systemd v256+ helpers for out-of-band SSH. <code>systemd-ssh-proxy</code> handles <code>vsock-mux/&lt;unix-socket&gt;</code> via <code>ProxyCommand</code> + <code>ProxyUseFdpass=yes</code> (passing the connected fd directly to <code>ssh</code>). <code>systemd-ssh-generator</code> auto-binds <code>vsock:22</code> inside VMs unless disabled with <code>systemd.ssh_auto=no</code>. (<a href="https://www.freedesktop.org/software/systemd/man/latest/systemd-ssh-proxy.html">systemd docs</a>)</dd>
+      </div>
+
+      <div class="glossary-term">
+        <dt>TAP Device &amp; Bridge (<code>tap-orbN</code> / <code>br-agent</code>)</dt>
+        <dd>A virtual Layer-2 Ethernet interface exposed to a userspace VMM (<code>cloud-hypervisor</code>). Each orb slot attaches its TAP (<code>multi_queue</code>) to the host bridge <code>br-agent</code> (<code>10.240.0.1/24</code>). (<a href="https://docs.kernel.org/networking/tuntap.html">tuntap docs</a>)</dd>
+      </div>
+
+      <div class="glossary-term">
+        <dt>nftables Base Chain &amp; Final Drop</dt>
+        <dd>Netfilter runs every table's base chains registered on a hook (<code>input</code>, <code>forward</code>, <code>postrouting</code>) in ascending priority order. A <code>drop</code> verdict in any table is final, so <code>table inet agent-isolation</code> cannot be weakened by another firewall table. (<a href="https://wiki.nftables.org/wiki-nftables/index.php/Configuring_chains">nftables wiki</a>)</dd>
+      </div>
+    </dl>
+
+    <h2>Decision Matrix (ADR-0006 on <code>homelab</code>)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Seam</th>
+          <th>Chosen</th>
+          <th>Alternative</th>
+          <th>Deciding Trade-Off</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Workspace storage</td>
+          <td>ZFS dataset + <code>virtiofs</code></td>
+          <td>ZFS ZVOL + <code>virtio-blk</code></td>
+          <td>Host can read &amp; <code>git diff</code> workspaces live; accepts FUSE trust boundary.</td>
+        </tr>
+        <tr>
+          <td>Pause mechanism</td>
+          <td>Clean guest <code>poweroff</code></td>
+          <td>CH <code>pause</code> or RAM <code>snapshot</code></td>
+          <td>Frees RAM &amp; slot without fragile FUSE <code>DEVICE_STATE</code> serialization (~8s cold resume).</td>
+        </tr>
+        <tr>
+          <td>UID alignment</td>
+          <td>Pin host <code>agent-vm</code> &amp; guest <code>user</code> to <code>2000</code></td>
+          <td>Dynamic UIDs + namespace UID map</td>
+          <td>Zero-friction ownership with <code>--sandbox=none</code>; requires one-time host UID migration.</td>
+        </tr>
+        <tr>
+          <td>OAuth secret</td>
+          <td><code>tmpfs</code> mounted at <code>~/.gemini</code></td>
+          <td>Persist on orb ZFS dataset</td>
+          <td>Refresh token never hits disk or ZFS snapshots/trash; copied per boot only for allowlisted repos.</td>
+        </tr>
+      </tbody>
+    </table>
+  </main>
+</body>
+</html>

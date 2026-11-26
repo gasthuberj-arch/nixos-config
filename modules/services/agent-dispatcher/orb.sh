@@ -22,7 +22,7 @@
 
 usage() {
   cat <<'EOF'
-usage: orb spawn OWNER/REPO [--branch B]           id = repo name
+usage: orb spawn OWNER/REPO [--name ID] [--branch B]   default id = repo name
        orb spawn ID                      resume a paused orb (running: no-op)
        orb pause ID                      guest poweroff, keep the workspace
        orb delete ID                     stop, destroy the dataset, forget it
@@ -188,6 +188,21 @@ mint_token() {
   mint-github-app-token "$1"
 }
 
+agy_repo_allowed() {
+  local repo=$1 pattern patterns=()
+  read -ra patterns <<<"${AGY_REPOS:-}"
+  for pattern in "${patterns[@]}"; do
+    if [[ "$pattern" == */\* ]]; then
+      if [[ -n "${pattern%/*}" && "$repo" == */* && -n "${repo#*/}" && "${repo%%/*}" == "${pattern%/*}" ]]; then
+        return 0
+      fi
+    elif [[ "$pattern" == "$repo" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 # prepare_slot ID SLOT [SPEC ISSUE TITLE DRY_RUN]: slot dirs, workspace
 # mount and job files for orb ID. A SPEC makes it a batch job.
 prepare_slot() {
@@ -231,7 +246,7 @@ prepare_slot() {
     echo "orb: warning: cannot mint a GitHub token for $repo; orb has no push access" >&2
   fi
 
-  if [[ " $AGY_REPOS " == *" $repo "* ]]; then
+  if agy_repo_allowed "$repo"; then
     # Accept either raw ~/.gemini contents or a HOME dir (e.g. `HOME=/persist/orbs/agy-cred agy`).
     agy_src=$AGY_CRED
     if [[ -d "$AGY_CRED/.gemini" ]]; then agy_src=$AGY_CRED/.gemini; fi
@@ -295,13 +310,29 @@ spawn_abort() {
 spawn_id=""
 
 cmd_spawn() {
-  local target="" branch="" spec="" issue="" title="" dry_run=false mode=interactive id repo="" slot
+  local target="" name="" has_name=false branch="" spec="" issue="" title="" dry_run=false mode=interactive id repo="" slot
   while (($#)); do
     case "$1" in
-    --branch) branch=$2 && shift 2 ;;
-    --spec) spec=$2 mode="batch" && shift 2 ;;
-    --issue) issue=$2 && shift 2 ;;
-    --title) title=$2 && shift 2 ;;
+    --name)
+      (($# >= 2)) || { usage >&2 && exit 64; }
+      name=$2 has_name=true && shift 2
+      ;;
+    --branch)
+      (($# >= 2)) || { usage >&2 && exit 64; }
+      branch=$2 && shift 2
+      ;;
+    --spec)
+      (($# >= 2)) || { usage >&2 && exit 64; }
+      spec=$2 mode="batch" && shift 2
+      ;;
+    --issue)
+      (($# >= 2)) || { usage >&2 && exit 64; }
+      issue=$2 && shift 2
+      ;;
+    --title)
+      (($# >= 2)) || { usage >&2 && exit 64; }
+      title=$2 && shift 2
+      ;;
     --dry-run) dry_run=true && shift ;;
     -*) usage >&2 && exit 64 ;;
     *)
@@ -312,6 +343,7 @@ cmd_spawn() {
   done
   [[ -n "$target" ]] || { usage >&2 && exit 64; }
   if [[ "$mode" == batch ]]; then
+    [[ "$has_name" == false ]] || die "--name cannot be used with --spec"
     [[ -f "$spec" && "$issue" =~ ^[0-9]+$ ]] || die "batch spawn needs --spec FILE and a numeric --issue"
   elif [[ -n "$issue$title" || "$dry_run" == true ]]; then
     die "--issue, --title and --dry-run need --spec"
@@ -322,11 +354,15 @@ cmd_spawn() {
   if [[ "$target" == */* ]]; then
     repo=$target
     [[ "$repo" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || die "invalid repo: $repo"
-    id=$(tr '[:upper:]' '[:lower:]' <<<"${repo#*/}" | tr -c 'a-z0-9\n' '-' | sed 's/^-*//' | cut -c1-32)
-    if [[ "$mode" == batch ]]; then id="$id-i$issue"; fi
+    if [[ "$has_name" == true ]]; then
+      id=$name
+    else
+      id=$(tr '[:upper:]' '[:lower:]' <<<"${repo#*/}" | tr -c 'a-z0-9\n' '-' | sed 's/^-*//' | cut -c1-32)
+      if [[ "$mode" == batch ]]; then id="$id-i$issue"; fi
+    fi
   else
     id=$target
-    [[ -z "$branch" && "$mode" == interactive ]] || die "resume takes no options: orb spawn $id"
+    [[ -z "$branch" && "$has_name" == false && "$mode" == interactive ]] || die "resume takes no options: orb spawn $id"
   fi
   valid_id "$id" || die "invalid orb id: $id"
 

@@ -8,6 +8,8 @@ informed: Future administrators, documentation readers
 
 # Ephemeral MicroVM Agent Workers (`agentDispatcher`)
 
+> Extended by [ADR-0006](0006-persistent-agent-orbs.md), which replaces the single-VM `flock`, `current-job` directory and `tap-agent0` parts with orb slots.
+
 ## Context and Problem Statement
 
 Running autonomous coding agents (such as `claude-code`, `opencode`, or `aider`) against GitHub issues requires executing untrusted, model-generated commands and builds (`nix develop`, `nix flake check`, `cargo`, `npm`). Running these directly on `homelab` exposes host filesystems, ZFS pools, `sops-nix` secrets, and internal `*.homelab.lan` services (Vaultwarden, Home Assistant, Nextcloud). At the same time, we want the exact same guest environment to run interactively on workstations via `nix run .#agent-vm-sandbox` for local experimentation.

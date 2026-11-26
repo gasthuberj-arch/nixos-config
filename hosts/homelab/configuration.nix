@@ -132,9 +132,10 @@
     agentDispatcher = {
       enable = true;
       # repositories = ["gasthuberj-arch/nixos-config"];
-      # githubAppId = "<app id>";
-      # githubAppInstallationId = "<installation id>";
-      # githubPrivateKeyFile = config.sops.secrets."agent_dispatcher/github_app_private_key".path;
+      githubAppId = "5944341";
+      githubAppInstallationId = "186299969";
+      githubPrivateKeyFile = config.sops.secrets."agent_dispatcher/github_app_private_key".path;
+      worker.memMb = 16384;
       # llmApiKeyFile = config.sops.secrets."agent_dispatcher/llm_api_key".path;
       # worker.agentPackages = [pkgs.claude-code];
     };
@@ -304,6 +305,7 @@
   sops = {
     defaultSopsFile = ../../secrets/homelab.yaml;
     age.sshKeyPaths = ["/persist/etc/ssh/ssh_host_ed25519_key"];
+    secrets."agent_dispatcher/github_app_private_key" = {};
   };
 
   # State version

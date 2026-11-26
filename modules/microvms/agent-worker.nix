@@ -34,7 +34,7 @@
     name = "agent-job-runner";
     runtimeInputs =
       (with pkgs; [git jq coreutils nix bash])
-      ++ [ghFresh]
+      ++ [ghFresh antigravity]
       ++ cfg.agentPackages;
     text = builtins.readFile ./agent-job-runner.sh;
   };

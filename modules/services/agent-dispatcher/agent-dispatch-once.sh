@@ -88,7 +88,7 @@ status=$(jq -r '.status // "none (timeout or crash)"' <<<"$result")
 pr_url=$(jq -r '.pr_url // empty' <<<"$result")
 clarification=$(jq -r '.clarification // empty' <<<"$result")
 echo "agent-dispatch-once: orb $id exit status: $status"
-if [[ "$status" == 0 ]]; then
+if [[ "$status" == 0 && ("$dry_run" == true || -n "$pr_url") ]]; then
   relabel agent-in-progress agent-completed
   if [[ "$dry_run" == false && -n "$pr_url" ]]; then
     gh issue comment "$issue" --repo "$repo" --body "Agent opened $pr_url" >/dev/null

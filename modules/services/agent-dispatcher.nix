@@ -243,7 +243,7 @@ in {
       type = lib.types.listOf lib.types.str;
       default = cfg.repositories;
       defaultText = lib.literalExpression "config.homelab.services.agentDispatcher.repositories";
-      description = "OWNER/REPO whose orbs get a copy of the agy credential (a Google refresh token).";
+      description = "OWNER/REPO or OWNER/* entries whose orbs get a copy of the agy credential (a Google refresh token).";
     };
   };
 

@@ -15,7 +15,8 @@
 #   AGENT_BACKEND         antigravity | claude-code | opencode | aider | custom
 #   CUSTOM_AGENT_COMMAND  shell command used when AGENT_BACKEND=custom
 #
-# Outputs: /run/orb-job/status (exit code), /run/orb-job/pr_url
+# Outputs: /run/orb-job/status (exit code; 10 = needs clarification),
+#          /run/orb-job/pr_url, /run/orb-job/clarification.md
 
 JOB_DIR=/run/orb-job
 SPEC_FILE="$JOB_DIR/spec.md"
@@ -66,7 +67,9 @@ fi
 prompt="You are running non-interactively inside a disposable sandbox VM.
 Implement GitHub issue #$issue of $repo. The full specification is in $SPEC_FILE.
 Read AGENTS.md in the repository root first if it exists and follow it.
-Then implement the specification, run the repository's checks
+Before writing code, check whether the specification is unambiguous and feasible.
+If key requirements, design decisions, or acceptance criteria are missing, do not guess or commit code: write a concise Markdown list of the exact blocking questions or gaps to .agent-clarification.md in the repository root and exit.
+Otherwise, implement the specification, run the repository's checks
 (nix flake check, pre-commit, or the project's test suite) and fix failures.
 Finally stage and commit your changes with a descriptive message ending in 'Fixes #$issue'.
 Do not push; do not open a pull request."
@@ -86,7 +89,21 @@ custom) agent=(bash -c "$CUSTOM_AGENT_COMMAND") ;;
   ;;
 esac
 
-"${wrap[@]}" "${agent[@]}"
+agent_rc=0
+"${wrap[@]}" "${agent[@]}" || agent_rc=$?
+
+if [[ -s "$workspace/.agent-clarification.md" ]]; then
+  cp "$workspace/.agent-clarification.md" "$JOB_DIR/clarification.md"
+  rm -f "$workspace/.agent-clarification.md"
+  git reset --hard "$base_rev" || true
+  git clean -fd || true
+  echo "agent-job-runner: agent requested clarification"
+  exit 10
+fi
+
+if ((agent_rc != 0)); then
+  exit "$agent_rc"
+fi
 
 # Commit anything the agent left uncommitted
 if [[ -n "$(git status --porcelain)" ]]; then

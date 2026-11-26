@@ -86,12 +86,23 @@ result=$(orb wait "$id") || result='{"status": "orb wait failed"}'
 # --- 4. Report back
 status=$(jq -r '.status // "none (timeout or crash)"' <<<"$result")
 pr_url=$(jq -r '.pr_url // empty' <<<"$result")
+clarification=$(jq -r '.clarification // empty' <<<"$result")
 echo "agent-dispatch-once: orb $id exit status: $status"
 if [[ "$status" == 0 ]]; then
   relabel agent-in-progress agent-completed
   if [[ "$dry_run" == false && -n "$pr_url" ]]; then
     gh issue comment "$issue" --repo "$repo" --body "Agent opened $pr_url" >/dev/null
   fi
+elif [[ "$status" == 10 ]]; then
+  relabel agent-in-progress agent-needs-clarification
+  if [[ "$dry_run" == false ]]; then
+    body="Agent marked this issue as needing clarification:"
+    if [[ -n "$clarification" ]]; then
+      body+=$'\n\n'"$clarification"
+    fi
+    gh issue comment "$issue" --repo "$repo" --body "$body" >/dev/null
+  fi
+  exit 0
 else
   relabel agent-in-progress agent-failed
   if [[ "$dry_run" == false ]]; then

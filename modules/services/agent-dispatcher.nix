@@ -13,8 +13,8 @@
 #
 # Manual state under /persist/orbs (root, 0700):
 #   ssh/id_ed25519   generated on first use; its .pub goes to every orb
-#   agy-cred/        contents of a logged-in agy ~/.gemini, copied into
-#                    orbs of `orbs.agyRepos` only
+#   agy-cred/        logged-in agy ~/.gemini contents (or HOME/.gemini),
+#                    copied into orbs of `orbs.agyRepos` only
 {
   config,
   lib,
@@ -265,7 +265,13 @@ in {
     };
     users.groups.${vmUser}.gid = vmGid;
 
-    environment.systemPackages = [orb dispatchOnce mintToken pkgs.nftables];
+    environment.systemPackages = [
+      orb
+      dispatchOnce
+      mintToken
+      pkgs.nftables
+      (pkgs.callPackage ../../pkgs/antigravity.nix {})
+    ];
 
     systemd.tmpfiles.rules = [
       "d ${orbStateRoot} 0700 root root -"

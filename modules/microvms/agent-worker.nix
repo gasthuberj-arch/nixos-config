@@ -265,7 +265,13 @@ in {
 
     programs.git = {
       enable = true;
-      config.credential."https://github.com".helper = "${gitCredentialOrb}";
+      config = {
+        credential."https://github.com".helper = "${gitCredentialOrb}";
+        user = {
+          name = "agent-worker[bot]";
+          email = "agent-worker[bot]@users.noreply.github.com";
+        };
+      };
     };
 
     environment.systemPackages =

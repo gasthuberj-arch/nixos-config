@@ -138,6 +138,7 @@
       # llmApiKeyFile = config.sops.secrets."agent_dispatcher/llm_api_key".path;
       # worker.agentPackages = [pkgs.claude-code];
     };
+    orbs.agyRepos = ["gasthuberj-arch/nixos-config"];
 
     # Caddy reverse proxy engine
     caddy = {

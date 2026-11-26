@@ -192,7 +192,7 @@ mint_token() {
 # mount and job files for orb ID. A SPEC makes it a batch job.
 prepare_slot() {
   local id=$1 slot=$2 spec=${3:-} issue=${4:-} title=${5:-} dry_run=${6:-false}
-  local repo branch job ws vm mode=interactive new_ds=0 token
+  local repo branch job ws vm mode=interactive new_ds=0 token agy_src
   [[ -z "$spec" ]] || mode="batch"
   repo=$(get "$id" repo)
   branch=$(get "$id" branch)
@@ -232,12 +232,15 @@ prepare_slot() {
   fi
 
   if [[ " $AGY_REPOS " == *" $repo "* ]]; then
-    if [[ -n "$(ls -A "$AGY_CRED" 2>/dev/null)" ]]; then
-      cp -r "$AGY_CRED" "$job/agy"
+    # Accept either raw ~/.gemini contents or a HOME dir (e.g. `HOME=/persist/orbs/agy-cred agy`).
+    agy_src=$AGY_CRED
+    if [[ -d "$AGY_CRED/.gemini" ]]; then agy_src=$AGY_CRED/.gemini; fi
+    if [[ -n "$(ls -A "$agy_src" 2>/dev/null)" ]]; then
+      cp -r "$agy_src" "$job/agy"
       chown -R "$VM_USER:$VM_USER" "$job/agy"
       chmod -R u=rwX,go= "$job/agy"
     else
-      echo "orb: warning: $AGY_CRED is empty; agy will not be logged in" >&2
+      echo "orb: warning: $agy_src is empty; agy will not be logged in" >&2
     fi
   fi
 

@@ -19,7 +19,7 @@ We use the [MADR (Markdown Architecture Decision Records)](https://adr.github.io
 | [ADR-0003](0003-disko-storage-management.md) | Use Disko for Declarative Storage Management | Accepted | 2025-01-19 |
 | [ADR-0004](0004-production-security-hardening.md) | Production Security Hardening Baseline Across Multi-Host NixOS Fleet | Accepted | 2026-11-13 |
 | [ADR-0005](0005-ephemeral-microvm-agent-workers.md) | Ephemeral MicroVM Agent Workers (`agentDispatcher`) | Accepted | 2026-11-13 |
-| [ADR-0006](0006-persistent-agent-orbs.md) | Pausable Agent Orbs on Homelab (extends ADR-0005) | Proposed | 2026-11-25 |
+| [ADR-0006](0006-persistent-agent-orbs.md) | Pausable Agent Orbs on Homelab (extends ADR-0005) | Accepted | 2026-11-25 |
 
 ## Decision Process
 

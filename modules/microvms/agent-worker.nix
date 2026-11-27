@@ -30,6 +30,10 @@
 
   antigravity = pkgs.callPackage ../../pkgs/antigravity.nix {};
 
+  agyManagedSettings = pkgs.writeText "agy-managed-settings.json" (builtins.toJSON {
+    model = cfg.agyModel;
+  });
+
   runner = pkgs.writeShellApplication {
     name = "agent-job-runner";
     runtimeInputs =
@@ -115,6 +119,11 @@ in {
     agentBackend = lib.mkOption {
       type = lib.types.enum ["antigravity" "claude-code" "opencode" "aider" "custom"];
       default = "antigravity";
+    };
+    agyModel = lib.mkOption {
+      type = lib.types.str;
+      default = "Orchestrator (Neon)";
+      description = "Default model for agy inside orbs (written to ~/.gemini/antigravity-cli/settings.json).";
     };
     agentPackages = lib.mkOption {
       type = lib.types.listOf lib.types.package;
@@ -344,18 +353,30 @@ in {
 
     # --- Orb boot: credentials into tmpfs, first-boot clone ---------------
     systemd.services.orb-agy-credential = lib.mkIf orb {
-      description = "Copy the agy credential from the job share into ~/.gemini";
+      description = "Prepare ~/.gemini with agy credentials and default settings";
       wantedBy = ["multi-user.target"];
       unitConfig = {
         RequiresMountsFor = ["${home}/.gemini" jobMount];
-        ConditionPathIsDirectory = "${jobMount}/agy";
       };
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;
       };
       script = ''
-        cp -rT ${jobMount}/agy ${home}/.gemini
+        if [ -d ${jobMount}/agy ]; then
+          cp -rT ${jobMount}/agy ${home}/.gemini
+        fi
+        settings="${home}/.gemini/antigravity-cli/settings.json"
+        mkdir -p "$(dirname "$settings")"
+        [ -s "$settings" ] || echo '{}' >"$settings"
+        if ${pkgs.jq}/bin/jq -s '.[0] * .[1]' "$settings" ${agyManagedSettings} >"$settings.tmp"; then
+          mv "$settings.tmp" "$settings"
+        else
+          rm -f "$settings.tmp"
+          echo "orb-agy-credential: $settings is not valid JSON, replacing with managed defaults" >&2
+          cp ${agyManagedSettings} "$settings"
+        fi
+        chmod 0600 "$settings"
         chown -R user:user ${home}/.gemini
       '';
     };

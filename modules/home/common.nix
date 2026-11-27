@@ -607,6 +607,29 @@ in {
       fi
     '';
 
+  # Same reason as vscodeSettings: agy rewrites settings.json atomically (0600)
+  # on startup and on every /config, /model, workspace-trust or theme-toggle
+  # change, so a read-only store symlink breaks it. Merge the managed keys over
+  # the mutable file on activation so they win while everything else agy writes
+  # (colorScheme, trustedWorkspaces, statusLine, permissions) survives.
+  home.activation.agySettings = let
+    managed = pkgs.writeText "agy-managed-settings.json" (builtins.toJSON {
+      model = "Orchestrator (Neon)";
+    });
+  in
+    lib.hm.dag.entryAfter ["writeBoundary"] ''
+      settings="$HOME/.gemini/antigravity-cli/settings.json"
+      mkdir -p "$(dirname "$settings")"
+      [ -s "$settings" ] || (umask 077 && echo '{}' >"$settings")
+      if (umask 077 && ${pkgs.jq}/bin/jq -s '.[0] * .[1]' "$settings" ${managed} >"$settings.tmp"); then
+        chmod 0600 "$settings.tmp"
+        mv "$settings.tmp" "$settings"
+      else
+        rm -f "$settings.tmp"
+        echo "agySettings: $settings is not valid JSON, skipped merge" >&2
+      fi
+    '';
+
   # Office web apps (PowerPoint/Word Online) intercept Ctrl+V via the
   # async Clipboard API, which Firefox blocks by default for JS-triggered
   # paste. Without these prefs, copy-paste into PowerPoint Online silently

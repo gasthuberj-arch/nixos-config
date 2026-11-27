@@ -46,7 +46,7 @@
         {
           agentWorker = {
             slot = n;
-            inherit (cfg.worker) vcpu memMb agentBackend agentPackages customAgentCommand;
+            inherit (cfg.worker) vcpu memMb agentBackend agyModel agentPackages customAgentCommand;
           };
         }
       ];
@@ -219,6 +219,11 @@ in {
       agentBackend = lib.mkOption {
         type = lib.types.enum ["antigravity" "claude-code" "opencode" "aider" "custom"];
         default = "antigravity";
+      };
+      agyModel = lib.mkOption {
+        type = lib.types.str;
+        default = "Orchestrator (Neon)";
+        description = "Default model for agy inside worker orbs (interactive and batch).";
       };
       agentPackages = lib.mkOption {
         type = lib.types.listOf lib.types.package;
